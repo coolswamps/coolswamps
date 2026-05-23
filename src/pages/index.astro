@@ -19,30 +19,31 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   description={`Interactive map and scientific database of ${totalCount} swamps, bogs, fens, and wetlands across the United States.`}
 >
   <!-- Stats bar -->
-  <div class="bg-swamp-900 text-white">
+  <div style="background:#0a1510;border-bottom:1px solid #1a3022;">
     <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
       <div class="flex flex-wrap items-center gap-x-8 gap-y-1 text-sm">
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-swamp-400"></span>
-          <span class="text-swamp-300 font-medium">{totalCount}</span>
-          <span class="text-swamp-400">wetlands catalogued</span>
+          <span class="w-2 h-2 rounded-full" style="background:#52b788;"></span>
+          <span class="font-medium" style="color:#a8d8bb;">{totalCount}</span>
+          <span style="color:#3f6650;">wetlands catalogued</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-green-400"></span>
-          <span class="text-swamp-300 font-medium">{visitedCount}</span>
-          <span class="text-swamp-400">visited</span>
+          <span class="w-2 h-2 rounded-full" style="background:#52b788;"></span>
+          <span class="font-medium" style="color:#a8d8bb;">{visitedCount}</span>
+          <span style="color:#3f6650;">visited</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-          <span class="text-swamp-300 font-medium">{wishlistCount}</span>
-          <span class="text-swamp-400">want to visit</span>
+          <span class="w-2 h-2 rounded-full" style="background:#d4a017;"></span>
+          <span class="font-medium" style="color:#a8d8bb;">{wishlistCount}</span>
+          <span style="color:#3f6650;">want to visit</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-          <span class="text-swamp-300 font-medium">{stateCount}</span>
-          <span class="text-swamp-400">states</span>
+          <span class="w-2 h-2 rounded-full" style="background:#4895ef;"></span>
+          <span class="font-medium" style="color:#a8d8bb;">{stateCount}</span>
+          <span style="color:#3f6650;">states</span>
         </span>
-        <a href="/submit" class="ml-auto text-swamp-300 hover:text-white text-xs underline-offset-2 hover:underline transition-colors">
+        <a href="/submit" class="ml-auto text-xs transition-colors" style="color:#3f6650;"
+           onmouseover="this.style.color='#52b788'" onmouseout="this.style.color='#3f6650'">
           + Submit a swamp
         </a>
       </div>
@@ -50,12 +51,12 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   </div>
 
   <!-- View toggle toolbar -->
-  <div class="bg-white border-b border-swamp-100 sticky top-16 z-40 shadow-sm">
+  <div class="sticky top-16 z-40 shadow-lg" style="background:#0d1a12;border-bottom:1px solid #1a3022;">
     <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-12 gap-4">
 
         <!-- View toggle -->
-        <div class="flex items-center bg-swamp-50 rounded-lg p-1 gap-0.5" role="tablist" aria-label="View switcher">
+        <div class="flex items-center rounded-lg p-1 gap-0.5" style="background:#0a1510;" role="tablist" aria-label="View switcher">
           <button
             id="btn-map"
             role="tab"
@@ -88,7 +89,7 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
         <!-- Search (visible in both views) -->
         <div class="flex-1 max-w-sm">
           <div class="relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color:#3f6650;"
                  width="15" height="15" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="11" cy="11" r="8"/>
@@ -98,9 +99,7 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
               id="search-input"
               type="search"
               placeholder="Search swamps…"
-              class="w-full pl-9 pr-4 py-1.5 text-sm rounded-lg border border-swamp-200
-                     bg-white focus:outline-none focus:ring-2 focus:ring-swamp-500/30
-                     focus:border-swamp-400 transition-colors"
+              class="form-input w-full pl-9 pr-4 py-1.5 text-sm"
               aria-label="Search swamps"
               autocomplete="off"
             />
@@ -126,7 +125,7 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   </div>
 
   <!-- Filter panel (collapsible) -->
-  <div id="filter-panel" class="hidden bg-swamp-50 border-b border-swamp-100">
+  <div id="filter-panel" class="hidden" style="background:#0a1510;border-bottom:1px solid #1a3022;">
     <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
 
@@ -201,13 +200,11 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
 <script type="application/json" id="swamps-data" set:html={swampsJSON}></script>
 
 <style>
-  .view-tab {
-    color: theme('colors.swamp.500');
-  }
+  .view-tab  { color: #3f6650; }
   .active-tab {
-    background: white;
-    color: theme('colors.swamp.800');
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background: #1e3d2a;
+    color: #52b788;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     font-weight: 600;
   }
 </style>
