@@ -486,10 +486,7 @@ async function reverseGeocode(lat: number, lng: number) {
   geoStatus.textContent = '⟳ Detecting location…';
 
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      { headers: { 'Accept-Language': 'en-US,en' } }
-    );
+    const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
     if (!res.ok) {
       geoStatus.textContent = 'Could not detect location — fill county and state manually.';
       return;
@@ -566,10 +563,7 @@ async function searchAddress() {
   addressError.classList.add('hidden');
 
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&limit=1&addressdetails=1`,
-      { headers: { 'Accept-Language': 'en-US,en' } }
-    );
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
     const results: any[] = await res.json();
 
     if (!results.length) {
