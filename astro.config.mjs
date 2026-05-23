@@ -1,13 +1,12 @@
 import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
-import sitemap from '@astrojs/sitemap';
 
-// Hybrid mode: static pages + Vercel serverless for /api routes
 export default defineConfig({
   site: 'https://coolswamps.com',
-  output: 'static',          // All pages are pre-rendered at build time
+  output: 'static',
   integrations: [
     tailwind(),
-    sitemap(),
+    // sitemap temporarily removed — @astrojs/sitemap 3.1.x incompatible with Astro 6.x
+    // re-add once @astrojs/sitemap 3.2+ is confirmed compatible
   ],
 });
