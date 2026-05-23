@@ -1,0 +1,29 @@
+{
+  "name": "Okefenokee Swamp",
+  "status": "visited",
+  "coordinates": { "lat": 30.7274, "lng": -82.3229 },
+  "state": "Georgia",
+  "county": "Charlton",
+  "country": "USA",
+  "description": "One of the oldest and best-preserved freshwater ecosystems in North America. The Okefenokee encompasses roughly 438,000 acres of peat-filled wetland, open water prairies, cypress forests, and shrub bogs. The name derives from a Seminole or Muscogee phrase meaning 'land of the trembling earth' — a reference to the floating peat islands that shake underfoot. Designated a National Wildlife Refuge and a Ramsar Wetland of International Importance.",
+  "access_notes": "Three main entry points: Suwannee Canal Recreation Area (East — Folkston, GA), Stephen C. Foster State Park (West — Fargo, GA), and Okefenokee Swamp Park (North — Waycross, GA). Canoe/kayak trails require permits; overnight camping in the refuge requires advance reservation.",
+  "wildlife_notes": "Approximately 234 bird species recorded. American alligator and gopher tortoise are flagship species. Black bear, river otter, and white-tailed deer common. Sandhill cranes winter here. Home to the federally threatened indigo snake.",
+  "area_acres": 438000,
+  "elevation_ft": 100,
+  "tags": {
+    "terrain": ["bog", "peat-bog", "cypress-dome", "freshwater-marsh", "wet-prairie"],
+    "habitat": ["forested-wetland", "emergent-wetland", "aquatic-bed"],
+    "soil": ["histosol", "peat", "muck"],
+    "water_type": ["blackwater", "standing-water", "perennial"],
+    "topography": ["flat", "depression"],
+    "activities": ["kayaking", "canoeing", "birding", "photography", "wildlife-watching", "fishing", "camping"],
+    "vegetation": ["bald-cypress", "swamp-tupelo", "longleaf-pine", "titi", "Virginia-willow", "pitcher-plants", "sundews", "bladderworts"],
+    "custom": ["ramsar-site", "national-wildlife-refuge", "alligator", "carnivorous-plants"]
+  },
+  "difficulty": "moderate",
+  "best_season": ["spring", "fall", "winter"],
+  "photos": [],
+  "submitted_date": "2026-05-22",
+  "last_updated": "2026-05-22",
+  "verified": true
+}

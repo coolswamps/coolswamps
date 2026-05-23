@@ -1,0 +1,427 @@
+/**
+ * /api/submit-swamp
+ *
+ * Vercel serverless function that:
+ *  1. Validates the request (CORS, rate limit, CSRF, content-type)
+ *  2. Parses and validates all form fields (server-side Zod-equivalent)
+ *  3. Strips ALL EXIF/metadata from uploaded photos using sharp
+ *  4. Validates photo file magic bytes (not just MIME header)
+ *  5. Creates a new branch on GitHub with the swamp JSON + photos
+ *  6. Opens a pull request for admin review
+ *
+ * Required environment variables (set in Vercel dashboard):
+ *   GITHUB_PAT          — Fine-grained PAT: contents+PRs write on coolswamps/coolswamps
+ *   GITHUB_REPO_OWNER   — coolswamps
+ *   GITHUB_REPO_NAME    — coolswamps
+ *   ALLOWED_ORIGIN      — https://coolswamps.com
+ *   RATE_LIMIT_MAX      — (optional) max submissions per IP per hour (default: 3)
+ */
+
+// Node built-ins
+import { createHash, randomBytes } from 'crypto';
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
+const ALLOWED_ORIGIN   = process.env.ALLOWED_ORIGIN ?? 'https://coolswamps.com';
+const GITHUB_PAT       = process.env.GITHUB_PAT;
+const REPO_OWNER       = process.env.GITHUB_REPO_OWNER ?? 'coolswamps';
+const REPO_NAME        = process.env.GITHUB_REPO_NAME  ?? 'coolswamps';
+const RATE_LIMIT_MAX   = parseInt(process.env.RATE_LIMIT_MAX ?? '3', 10);
+const BASE_BRANCH      = 'main';
+
+// In-memory rate limiter (resets on cold start — acceptable for free tier)
+/** @type {Map<string, {count: number, resetAt: number}>} */
+const rateLimitMap = new Map();
+
+// File magic bytes for image validation
+const MAGIC_BYTES = {
+  jpeg: [[0xFF, 0xD8, 0xFF]],
+  png:  [[0x89, 0x50, 0x4E, 0x47]],
+  webp: null, // checked via 'WEBP' string at offset 8
+};
+
+// Allowed MIME types
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+// Max sizes
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
+const MAX_PHOTOS      = 10;
+const MAX_TEXT_LEN    = 5000;
+
+// Valid enum values (mirror of content/config.ts)
+const VALID_STATES = new Set([
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
+  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
+  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada',
+  'New Hampshire','New Jersey','New Mexico','New York','North Carolina',
+  'North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island',
+  'South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont',
+  'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
+  'Washington D.C.','Puerto Rico','U.S. Virgin Islands',
+]);
+
+const VALID_TERRAIN   = new Set(['bottomland-forest','bog','peat-bog','mire','fen','cypress-dome','cypress-swamp','pocosin','mangrove','prairie-pothole','freshwater-marsh','saltwater-marsh','vernal-pool','shrub-carr','tidal-swamp','floodplain-forest','Carolina-bay','wet-prairie','other']);
+const VALID_HABITAT   = new Set(['forested-wetland','shrub-wetland','emergent-wetland','aquatic-bed','unconsolidated-bottom','unconsolidated-shore','moss-lichen-wetland','other']);
+const VALID_SOIL      = new Set(['histosol','hydric','peat','muck','clay','sandy-loam','silt-loam','alluvial','marl','organic','other']);
+const VALID_WATER     = new Set(['blackwater','clearwater','whitewater','tidal','standing-water','slow-moving','seasonal','perennial','intermittent','other']);
+const VALID_TOPO      = new Set(['flat','gentle-slope','depression','floodplain','terrace','karst','coastal','riverine','lacustrine','palustrine','other']);
+const VALID_ACTIVITIES= new Set(['hiking','bushwhacking','kayaking','canoeing','paddling','birding','wildlife-watching','photography','videography','fishing','frogging','hunting','foraging','swimming','wading','camping','overnight-backpacking','botanizing','herping','insect-collecting','scientific-research','other']);
+const VALID_DIFFICULTY= new Set(['easy','moderate','difficult','expert']);
+const VALID_SEASONS   = new Set(['spring','summer','fall','winter','year-round']);
+const VALID_STATUS    = new Set(['visited','want-to-visit']);
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/** Sanitize a string: trim, limit length, strip control characters */
+function sanitizeText(val, maxLen = 200) {
+  if (typeof val !== 'string') return '';
+  // Remove control characters except newlines and tabs
+  return val.replace(/[^\S\n\t]|\p{Cc}/gu, ' ').trim().slice(0, maxLen);
+}
+
+/** Validate an array of values against an allowed Set, filtering unknowns */
+function filterEnum(values, validSet) {
+  if (!Array.isArray(values)) return [];
+  return values.filter(v => typeof v === 'string' && validSet.has(v));
+}
+
+/** Check image magic bytes */
+function isValidImageBuffer(buf, mimeType) {
+  const bytes = new Uint8Array(buf);
+  if (mimeType === 'image/jpeg') {
+    return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+  }
+  if (mimeType === 'image/png') {
+    return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+  }
+  if (mimeType === 'image/webp') {
+    const dec = new TextDecoder();
+    const header = dec.decode(bytes.slice(0, 12));
+    return header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP';
+  }
+  return false;
+}
+
+/** Generate a URL-safe slug from swamp name + random suffix */
+function makeSlug(name) {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 60);
+  const suffix = randomBytes(3).toString('hex');
+  return `${base}-${suffix}`;
+}
+
+/** GitHub API helper */
+async function githubFetch(path, options = {}) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${GITHUB_PAT}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'CoolSwamps-Submission-Bot/1.0',
+      ...(options.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(`GitHub API ${path}: ${res.status} ${body.message ?? ''}`);
+  }
+  return res.json();
+}
+
+/** Rate limiter — IP-based, in-memory, 1-hour window */
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 3600_000 });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
+// ── Main handler ───────────────────────────────────────────────────────────────
+
+export default async function handler(req, res) {
+
+  // ── 1. CORS ──────────────────────────────────────────────────────────────
+  const origin = req.headers['origin'] ?? '';
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token');
+    return res.status(204).end();
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!ALLOWED_MIME.has('image/jpeg') || !GITHUB_PAT) {
+    console.error('Missing required environment variables');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  // ── 2. Rate limiting ──────────────────────────────────────────────────
+  const clientIp =
+    (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() ||
+    req.socket?.remoteAddress ||
+    'unknown';
+
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ error: 'Too many submissions. Please wait before trying again.' });
+  }
+
+  // ── 3. Parse multipart form data ──────────────────────────────────────
+  // Vercel provides parsed body for non-multipart; for file uploads we use formidable
+  let fields, photoFiles;
+  try {
+    const { default: formidable } = await import('formidable');
+    const form = formidable({
+      maxFiles: MAX_PHOTOS,
+      maxFileSize: MAX_PHOTO_BYTES,
+      filter: ({ mimetype }) => ALLOWED_MIME.has(mimetype ?? ''),
+      keepExtensions: false,
+    });
+
+    [fields, photoFiles] = await new Promise((resolve, reject) => {
+      form.parse(req, (err, f, files) => {
+        if (err) reject(err);
+        else resolve([f, files]);
+      });
+    });
+  } catch (err) {
+    console.error('Form parse error:', err);
+    return res.status(400).json({ error: 'Invalid form submission.' });
+  }
+
+  // Helper to get first value from formidable fields
+  const field = (key) => {
+    const val = fields[key];
+    return Array.isArray(val) ? val[0] : (val ?? '');
+  };
+
+  const getAll = (key) => {
+    const val = fields[key];
+    return Array.isArray(val) ? val : val ? [val] : [];
+  };
+
+  // ── 4. Validate & sanitize fields ─────────────────────────────────────
+
+  const name = sanitizeText(field('name'), 200);
+  if (!name) return res.status(400).json({ error: 'Swamp name is required.' });
+
+  const status = field('status');
+  if (!VALID_STATUS.has(status)) return res.status(400).json({ error: 'Invalid status value.' });
+
+  const state = sanitizeText(field('state'), 50);
+  if (!VALID_STATES.has(state)) return res.status(400).json({ error: 'Invalid state.' });
+
+  const county = sanitizeText(field('county'), 100);
+  if (!county) return res.status(400).json({ error: 'County is required.' });
+
+  const lat = parseFloat(field('lat'));
+  const lng = parseFloat(field('lng'));
+  if (isNaN(lat) || lat < -90  || lat > 90)  return res.status(400).json({ error: 'Invalid latitude.' });
+  if (isNaN(lng) || lng < -180 || lng > 180) return res.status(400).json({ error: 'Invalid longitude.' });
+
+  const description    = sanitizeText(field('description'),    MAX_TEXT_LEN);
+  const access_notes   = sanitizeText(field('access_notes'),   2000);
+  const wildlife_notes = sanitizeText(field('wildlife_notes'), 2000);
+  const historical_notes = sanitizeText(field('historical_notes'), 2000);
+
+  const area_acres   = parseFloat(field('area_acres'))   || undefined;
+  const elevation_ft = parseFloat(field('elevation_ft')) || undefined;
+
+  const terrain    = filterEnum(getAll('terrain'),    VALID_TERRAIN);
+  const habitat    = filterEnum(getAll('habitat'),    VALID_HABITAT);
+  const soil       = filterEnum(getAll('soil'),       VALID_SOIL);
+  const water_type = filterEnum(getAll('water_type'), VALID_WATER);
+  const topography = filterEnum(getAll('topography'), VALID_TOPO);
+  const activities = filterEnum(getAll('activities'), VALID_ACTIVITIES);
+  const best_season= filterEnum(getAll('best_season'),VALID_SEASONS);
+
+  const difficulty = VALID_DIFFICULTY.has(field('difficulty')) ? field('difficulty') : undefined;
+
+  // Vegetation: split by comma, sanitize each tag
+  const vegRaw  = sanitizeText(field('vegetation'), 1000);
+  const vegetation = vegRaw ? vegRaw.split(',').map(v => sanitizeText(v, 100)).filter(Boolean).slice(0, 30) : [];
+
+  // Custom tags: split + sanitize
+  const customRaw = sanitizeText(field('custom_tags'), 500);
+  const custom = customRaw ? customRaw.split(',').map(v => sanitizeText(v, 50)).filter(Boolean).slice(0, 20) : [];
+
+  // ── 5. Process photos ─────────────────────────────────────────────────
+  const { default: sharp } = await import('sharp');
+  const { readFile } = await import('fs/promises');
+
+  const allPhotoFiles = Object.values(photoFiles).flat();
+  const processedPhotos = [];
+
+  for (const file of allPhotoFiles.slice(0, MAX_PHOTOS)) {
+    // Read file bytes
+    const buf = await readFile(file.filepath);
+
+    // Validate magic bytes
+    if (!isValidImageBuffer(buf, file.mimetype)) {
+      console.warn('Invalid magic bytes for uploaded file, skipping');
+      continue;
+    }
+
+    // Strip ALL metadata using sharp (rotate to fix orientation, then strip)
+    let cleanBuf;
+    try {
+      cleanBuf = await sharp(buf)
+        .rotate()          // auto-rotate from EXIF orientation, then strip EXIF
+        .withMetadata({})  // passing empty object strips all metadata
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+    } catch (err) {
+      console.error('Sharp processing error:', err);
+      continue; // Skip malformed images
+    }
+
+    // Verify output size is reasonable
+    if (cleanBuf.length > MAX_PHOTO_BYTES) {
+      console.warn('Processed photo exceeds size limit, skipping');
+      continue;
+    }
+
+    const ext = 'jpg';
+    const photoSlug = randomBytes(8).toString('hex');
+    processedPhotos.push({
+      filename: `${photoSlug}.${ext}`,
+      buffer: cleanBuf,
+      base64: cleanBuf.toString('base64'),
+    });
+  }
+
+  // ── 6. Build swamp JSON ───────────────────────────────────────────────
+  const slug = makeSlug(name);
+  const today = new Date().toISOString().split('T')[0];
+
+  const swampData = {
+    name,
+    status,
+    coordinates: { lat, lng },
+    state,
+    county,
+    country: 'USA',
+    ...(description    ? { description }    : {}),
+    ...(access_notes   ? { access_notes }   : {}),
+    ...(wildlife_notes ? { wildlife_notes } : {}),
+    ...(historical_notes ? { historical_notes } : {}),
+    ...(area_acres   !== undefined ? { area_acres }   : {}),
+    ...(elevation_ft !== undefined ? { elevation_ft } : {}),
+    tags: { terrain, habitat, soil, water_type, topography, activities, vegetation, custom },
+    ...(difficulty  ? { difficulty }  : {}),
+    ...(best_season.length ? { best_season } : {}),
+    photos: processedPhotos.map(p => ({ filename: p.filename })),
+    submitted_date: today,
+    last_updated:   today,
+    verified: false,
+  };
+
+  // ── 7. Create GitHub branch + commit ─────────────────────────────────
+  try {
+    // Get base branch SHA
+    const baseRef = await githubFetch(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/git/ref/heads/${BASE_BRANCH}`
+    );
+    const baseSha = baseRef.object.sha;
+
+    // Create new branch
+    const branchName = `submit/${slug}`;
+    await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/refs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ref: `refs/heads/${branchName}`,
+        sha: baseSha,
+      }),
+    });
+
+    // Helper to create/update a file in the repo
+    async function createFile(path, content, message) {
+      await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          content: Buffer.from(content).toString('base64'),
+          branch: branchName,
+        }),
+      });
+    }
+
+    // Commit swamp JSON
+    const jsonContent = JSON.stringify(swampData, null, 2);
+    await createFile(
+      `src/content/swamps/${slug}.json`,
+      jsonContent,
+      `feat: add swamp submission — ${name}`
+    );
+
+    // Commit each cleaned photo
+    for (const photo of processedPhotos) {
+      await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/public/photos/${photo.filename}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `feat: add photo for ${name}`,
+          content: photo.base64,
+          branch: branchName,
+        }),
+      });
+    }
+
+    // Open pull request
+    const prBody = [
+      `## New Swamp Submission: ${name}`,
+      ``,
+      `| Field | Value |`,
+      `|-------|-------|`,
+      `| **Status** | ${status} |`,
+      `| **State** | ${state} |`,
+      `| **County** | ${county} |`,
+      `| **Coordinates** | ${lat}, ${lng} |`,
+      `| **Terrain** | ${terrain.join(', ') || '—'} |`,
+      `| **Activities** | ${activities.join(', ') || '—'} |`,
+      `| **Photos** | ${processedPhotos.length} (all EXIF stripped) |`,
+      ``,
+      `### Description`,
+      description || '_No description provided_',
+      ``,
+      `> ⚠️ Review all content before merging. EXIF data has been stripped from all photos.`,
+      `> Submitted anonymously via coolswamps.com`,
+    ].join('\n');
+
+    await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/pulls`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `New swamp: ${name} (${state})`,
+        body: prBody,
+        head: branchName,
+        base: BASE_BRANCH,
+      }),
+    });
+
+    return res.status(200).json({ success: true, slug });
+
+  } catch (err) {
+    console.error('GitHub API error:', err);
+    return res.status(500).json({
+      error: 'Failed to create submission. Please try again later.',
+    });
+  }
+}

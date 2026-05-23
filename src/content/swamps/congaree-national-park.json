@@ -1,0 +1,29 @@
+{
+  "name": "Congaree National Park Floodplain",
+  "status": "visited",
+  "coordinates": { "lat": 33.7948, "lng": -80.7837 },
+  "state": "South Carolina",
+  "county": "Richland",
+  "country": "USA",
+  "description": "Congaree preserves the largest intact expanse of old-growth bottomland hardwood forest remaining in North America. Located in the floodplain of the Congaree River, the park harbors an exceptional number of state and national champion trees. The forest floor floods regularly, creating a dynamic wetland ecosystem. Designated a UNESCO Biosphere Reserve and International Dark Sky Park.",
+  "access_notes": "Harry Hampton Visitor Center off SC-48 (Bluff Rd), 20 miles southeast of Columbia. 25 miles of hiking trails including an elevated boardwalk. Cedar Creek canoe trail offers 15-50 mile paddle through old-growth interior. Free entry. Open year-round.",
+  "wildlife_notes": "Firefly synchronization event each May/June — one of the best in North America. Wood duck, barred owl, pileated woodpecker, and prothonotary warbler. Cottonmouth and watersnakes common near water features. White-tailed deer and feral hog.",
+  "area_acres": 26545,
+  "elevation_ft": 130,
+  "tags": {
+    "terrain": ["bottomland-forest", "floodplain-forest"],
+    "habitat": ["forested-wetland"],
+    "soil": ["alluvial", "clay", "hydric", "silt-loam"],
+    "water_type": ["clearwater", "slow-moving", "seasonal", "perennial"],
+    "topography": ["flat", "floodplain"],
+    "activities": ["hiking", "kayaking", "canoeing", "birding", "photography", "camping", "botanizing", "wildlife-watching"],
+    "vegetation": ["bald-cypress", "water-tupelo", "cherrybark-oak", "loblolly-pine", "dwarf-palmetto", "swamp-chestnut-oak", "sweetgum", "American-elm"],
+    "custom": ["old-growth", "champion-trees", "biosphere-reserve", "dark-sky-park", "synchronous-fireflies", "national-park"]
+  },
+  "difficulty": "easy",
+  "best_season": ["spring", "fall", "winter"],
+  "photos": [],
+  "submitted_date": "2026-05-22",
+  "last_updated": "2026-05-22",
+  "verified": true
+}

@@ -1,0 +1,29 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Privacy Policy" noIndex={true}>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <h1 class="text-3xl font-bold text-swamp-900 mb-2">Privacy Policy</h1>
+    <p class="text-swamp-400 text-sm mb-8">Last updated: May 2026</p>
+
+    <div class="space-y-6 text-gray-700 leading-relaxed">
+      <section>
+        <h2 class="text-lg font-semibold text-swamp-900 mb-2">Data we collect</h2>
+        <p>CoolSwamps collects no personal data from visitors. We do not use cookies, tracking scripts, or analytics beyond server-side access logs maintained by Vercel (our hosting provider). We do not sell, share, or monetize any data.</p>
+      </section>
+      <section>
+        <h2 class="text-lg font-semibold text-swamp-900 mb-2">Submissions</h2>
+        <p>Swamp submissions are anonymous. We do not collect submitter names, email addresses, or IP addresses in our database. Uploaded photos are automatically stripped of all EXIF metadata (including GPS location) before storage.</p>
+      </section>
+      <section>
+        <h2 class="text-lg font-semibold text-swamp-900 mb-2">Third-party services</h2>
+        <p>The map uses tile layers from OpenStreetMap, USGS, Esri, and other providers. These providers may log tile request IPs per their own privacy policies. Species data is loaded from GBIF and iNaturalist APIs.</p>
+      </section>
+      <section>
+        <h2 class="text-lg font-semibold text-swamp-900 mb-2">Contact</h2>
+        <p>Questions? Open an issue on our <a href="https://github.com/coolswamps/coolswamps" target="_blank" rel="noopener noreferrer">GitHub repository</a>.</p>
+      </section>
+    </div>
+  </div>
+</BaseLayout>

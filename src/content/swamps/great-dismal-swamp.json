@@ -1,0 +1,30 @@
+{
+  "name": "Great Dismal Swamp",
+  "status": "visited",
+  "coordinates": { "lat": 36.5771, "lng": -76.4496 },
+  "state": "Virginia",
+  "county": "Chesapeake",
+  "country": "USA",
+  "description": "One of the largest and most historically significant swamps on the East Coast. The Great Dismal Swamp spans approximately 111,000 acres across Virginia and North Carolina. A vast Atlantic white cedar and bald cypress wetland forest, it is home to an exceptional diversity of wildlife and served as a refuge for freedom seekers via the Underground Railroad. Lake Drummond sits at its center — a rare, naturally occurring lake in the mid-Atlantic region.",
+  "access_notes": "Primary access via Desert Rd (SR-642) off US-17. Washington Ditch Rd provides a long linear trail into the interior. Multiple USFWS trailheads with parking. Boardwalk trail at the Dismal Swamp Welcome Center in Chesapeake, VA.",
+  "wildlife_notes": "Home to over 200 bird species. Black bear, bobcat, otter, and white-tailed deer. Cottonmouth, copperhead, and numerous non-venomous snake species. Breeding habitat for prothonotary warbler and Wayne's black-throated green warbler subspecies.",
+  "historical_notes": "George Washington surveyed the swamp in 1763 and invested in a timber company here. Maroon communities of escaped enslaved people, known as 'maroons,' lived in the swamp for generations. Harriet Beecher Stowe referenced the swamp in her writing.",
+  "area_acres": 111200,
+  "elevation_ft": 20,
+  "tags": {
+    "terrain": ["bottomland-forest", "cypress-swamp", "peat-bog"],
+    "habitat": ["forested-wetland", "shrub-wetland"],
+    "soil": ["histosol", "peat", "organic"],
+    "water_type": ["blackwater", "standing-water", "perennial"],
+    "topography": ["flat", "depression"],
+    "activities": ["hiking", "birding", "kayaking", "photography", "wildlife-watching", "botanizing"],
+    "vegetation": ["atlantic-white-cedar", "bald-cypress", "red-maple", "sweetbay-magnolia", "sphagnum-moss", "Virginia-chain-fern"],
+    "custom": ["underground-railroad-history", "lake-drummond", "national-wildlife-refuge"]
+  },
+  "difficulty": "easy",
+  "best_season": ["spring", "fall"],
+  "photos": [],
+  "submitted_date": "2026-05-22",
+  "last_updated": "2026-05-22",
+  "verified": true
+}

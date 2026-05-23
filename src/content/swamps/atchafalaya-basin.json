@@ -1,0 +1,29 @@
+{
+  "name": "Atchafalaya Basin",
+  "status": "want-to-visit",
+  "coordinates": { "lat": 29.9711, "lng": -91.5389 },
+  "state": "Louisiana",
+  "county": "St. Mary",
+  "country": "USA",
+  "description": "The largest river swamp in North America, the Atchafalaya Basin covers approximately 1.4 million acres of bottomland hardwood forest, bald cypress-water tupelo swamp, freshwater marsh, and open water. It is the floodway of the Atchafalaya River, the largest distributary of the Mississippi River. This living delta ecosystem is critically important for migratory birds along the Mississippi Flyway and supports a rich Cajun cultural heritage of fishing, trapping, and moss gathering.",
+  "access_notes": "Access via boat is the primary means of exploration. Henderson Lake and Lake Fausse Pointe State Park offer good put-in points. The Henderson Swamp boat launch is a popular access point. I-10 crosses the basin and provides aerial views. Basin Explorer tour boats operate from Henderson.",
+  "wildlife_notes": "Critically important stopover and wintering area for millions of migratory birds on the Mississippi Flyway. American alligator, black bear, river otter. Breeding wading birds including great blue heron, great egret, tricolored heron, little blue heron, and roseate spoonbill. Paddlefish and alligator gar in deeper waters.",
+  "area_acres": 1400000,
+  "elevation_ft": 5,
+  "tags": {
+    "terrain": ["bottomland-forest", "cypress-swamp", "freshwater-marsh", "floodplain-forest"],
+    "habitat": ["forested-wetland", "emergent-wetland", "aquatic-bed"],
+    "soil": ["alluvial", "clay", "muck", "hydric"],
+    "water_type": ["blackwater", "standing-water", "slow-moving", "perennial"],
+    "topography": ["flat", "floodplain", "riverine"],
+    "activities": ["kayaking", "canoeing", "birding", "fishing", "photography", "wildlife-watching", "frogging"],
+    "vegetation": ["bald-cypress", "water-tupelo", "swamp-cottonwood", "buttonbush", "lotus", "water-hyacinth", "Spanish-moss"],
+    "custom": ["mississippi-flyway", "cajun-culture", "largest-river-swamp", "alligator-gar"]
+  },
+  "difficulty": "moderate",
+  "best_season": ["spring", "fall", "winter"],
+  "photos": [],
+  "submitted_date": "2026-05-22",
+  "last_updated": "2026-05-22",
+  "verified": true
+}

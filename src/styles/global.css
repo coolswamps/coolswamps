@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary:     #1B4332;
+    --color-secondary:   #2D6A4F;
+    --color-accent:      #40916C;
+    --color-accent-light:#74C69D;
+    --color-bg:          #F8FAF9;
+    --color-surface:     #ffffff;
+    --color-border:      #d1e0d8;
+    --color-text:        #1a2e25;
+    --color-text-muted:  #4a6358;
+    --color-visited:     #2D6A4F;
+    --color-wishlist:    #9C6B1B;
+  }
+
+  html {
+    @apply scroll-smooth;
+    font-family: 'Inter', 'Source Sans 3', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-[--color-bg] text-[--color-text] antialiased;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight text-swamp-900;
+  }
+
+  a {
+    @apply text-swamp-600 hover:text-swamp-800 transition-colors;
+  }
+}
+
+@layer components {
+  /* --- Buttons --- */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg
+           bg-swamp-700 text-white font-medium text-sm
+           hover:bg-swamp-800 active:bg-swamp-900
+           transition-colors shadow-sm focus:outline-none
+           focus:ring-2 focus:ring-swamp-500 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg
+           bg-white text-swamp-700 font-medium text-sm
+           border border-swamp-300
+           hover:bg-swamp-50 active:bg-swamp-100
+           transition-colors shadow-sm focus:outline-none
+           focus:ring-2 focus:ring-swamp-500 focus:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
+           text-swamp-600 font-medium text-sm
+           hover:bg-swamp-50 active:bg-swamp-100
+           transition-colors focus:outline-none
+           focus:ring-2 focus:ring-swamp-500 focus:ring-offset-2;
+  }
+
+  /* --- Cards --- */
+  .card {
+    @apply bg-white rounded-xl border border-[--color-border]
+           shadow-sm hover:shadow-md transition-shadow;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-[--color-border];
+  }
+
+  .card-body {
+    @apply px-6 py-5;
+  }
+
+  /* --- Status badges --- */
+  .badge-visited {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full
+           text-xs font-semibold
+           bg-swamp-100 text-swamp-800 border border-swamp-200;
+  }
+
+  .badge-wishlist {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full
+           text-xs font-semibold
+           bg-amber-100 text-amber-800 border border-amber-200;
+  }
+
+  .badge-tag {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs
+           font-medium bg-swamp-50 text-swamp-700
+           border border-swamp-200;
+  }
+
+  /* --- Form elements --- */
+  .form-input {
+    @apply block w-full rounded-lg border border-gray-300 bg-white
+           px-3.5 py-2.5 text-sm text-gray-900 shadow-sm
+           placeholder:text-gray-400
+           focus:border-swamp-500 focus:outline-none
+           focus:ring-2 focus:ring-swamp-500/20
+           transition-colors;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-swamp-900 mb-1.5;
+  }
+
+  .form-hint {
+    @apply mt-1.5 text-xs text-gray-500;
+  }
+
+  .form-error {
+    @apply mt-1.5 text-xs text-red-600;
+  }
+
+  .form-select {
+    @apply form-input appearance-none bg-no-repeat pr-9
+           bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E")]
+           bg-[length:1.25rem] bg-[right_0.5rem_center];
+  }
+
+  /* --- Section divider --- */
+  .section-divider {
+    @apply border-t border-[--color-border] my-8;
+  }
+
+  /* --- Map container --- */
+  #swamp-map {
+    @apply w-full rounded-xl border border-[--color-border] shadow-sm;
+    height: calc(100vh - 160px);
+    min-height: 500px;
+  }
+
+  /* --- Table --- */
+  .data-table {
+    @apply w-full text-sm text-left border-collapse;
+  }
+
+  .data-table thead th {
+    @apply px-4 py-3 bg-swamp-50 text-swamp-800 font-semibold
+           border-b border-swamp-200 whitespace-nowrap cursor-pointer
+           select-none hover:bg-swamp-100 transition-colors;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-gray-100 hover:bg-swamp-50/50 transition-colors;
+  }
+
+  .data-table tbody td {
+    @apply px-4 py-3 text-gray-700;
+  }
+
+  /* --- Nav active state --- */
+  .nav-active {
+    @apply text-swamp-700 border-b-2 border-swamp-600;
+  }
+
+  /* --- Loading skeleton --- */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Leaflet overrides to match our theme */
+.leaflet-control-layers {
+  border: 1px solid var(--color-border) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.leaflet-popup-tip-container {
+  margin-top: -1px;
+}
+
+/* Custom swamp marker */
+.swamp-marker-visited {
+  background: #2D6A4F;
+  border: 2px solid #1B4332;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  width: 20px;
+  height: 20px;
+}
+
+.swamp-marker-wishlist {
+  background: #9C6B1B;
+  border: 2px solid #7c5616;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  width: 20px;
+  height: 20px;
+}

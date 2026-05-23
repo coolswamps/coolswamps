@@ -1,0 +1,420 @@
+---
+// Map component — renders the Leaflet map with all free tile layers
+// All data is passed in via the swamps:filter event from index.astro
+---
+
+<!-- Leaflet CSS -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin="anonymous"
+/>
+
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GQnc="
+  crossorigin="anonymous"
+  defer
+></script>
+
+<script>
+// Wait for Leaflet to load
+document.addEventListener('DOMContentLoaded', () => {
+  // @ts-ignore
+  const L = window.L;
+  if (!L) { console.error('Leaflet failed to load'); return; }
+
+  // ─── Map init ──────────────────────────────────────────────────────────────
+  const map = L.map('swamp-map', {
+    center: [37.5, -90.0],
+    zoom: 5,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  // ─── Base tile layers (all free, no API key required) ──────────────────────
+
+  const baseLayers: Record<string, any> = {};
+
+  // 1. OpenStreetMap — default
+  baseLayers['OpenStreetMap'] = L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom: 19,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }
+  );
+
+  // 2. USGS National Map — Topo
+  baseLayers['USGS Topo'] = L.tileLayer(
+    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 16,
+      attribution: 'Tiles courtesy of the <a href="https://usgs.gov">U.S. Geological Survey</a>',
+    }
+  );
+
+  // 3. USGS National Map — Satellite Imagery
+  baseLayers['USGS Satellite'] = L.tileLayer(
+    'https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 16,
+      attribution: 'Tiles courtesy of the <a href="https://usgs.gov">U.S. Geological Survey</a>',
+    }
+  );
+
+  // 4. Esri World Imagery (free for non-commercial / attribution)
+  baseLayers['Esri Satellite'] = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    }
+  );
+
+  // 5. OpenTopoMap — contour topo
+  baseLayers['OpenTopoMap'] = L.tileLayer(
+    'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom: 17,
+      attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>',
+    }
+  );
+
+  // ─── Overlay layers ────────────────────────────────────────────────────────
+
+  const overlayLayers: Record<string, any> = {};
+
+  // 6. USFWS National Wetlands Inventory (NWI) — free WMS
+  overlayLayers['🌿 Wetlands (NWI)'] = L.tileLayer.wms(
+    'https://www.fws.gov/wetlands/arcgis/services/Wetlands/MapServer/WMSServer',
+    {
+      layers: '1',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.55,
+      attribution: '<a href="https://www.fws.gov/program/national-wetlands-inventory">USFWS NWI</a>',
+    }
+  );
+
+  // 7. USDA Web Soil Survey — free WMS
+  overlayLayers['🪨 Soil Types (USDA)'] = L.tileLayer.wms(
+    'https://SDMDataAccess.sc.egov.usda.gov/Spatial/SDM.wms',
+    {
+      layers: 'mapunitpoly',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.5,
+      attribution: '<a href="https://websoilsurvey.nrcs.usda.gov">USDA NRCS Web Soil Survey</a>',
+    }
+  );
+
+  // 8. USGS National Land Cover Database (NLCD)
+  overlayLayers['🗺️ Land Cover (NLCD)'] = L.tileLayer.wms(
+    'https://www.mrlc.gov/geoserver/mrlc_display/NLCD_2021_Land_Cover_L48/ows',
+    {
+      layers: 'NLCD_2021_Land_Cover_L48',
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.5,
+      attribution: '<a href="https://www.mrlc.gov">USGS NLCD</a>',
+    }
+  );
+
+  // 9. GBIF — All species observations (no key)
+  overlayLayers['🌍 All Species (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point',
+    {
+      maxZoom: 14,
+      opacity: 0.6,
+      attribution: '<a href="https://www.gbif.org">GBIF</a>',
+    }
+  );
+
+  // 9a. GBIF — Birds only (taxonKey=212, class Aves)
+  overlayLayers['🐦 Birds (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=212',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Aves</a>',
+    }
+  );
+
+  // 9b. GBIF — Fungi & Mushrooms (taxonKey=5, kingdom Fungi)
+  overlayLayers['🍄 Fungi (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=5',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Fungi</a>',
+    }
+  );
+
+  // 9c. GBIF — Plants (taxonKey=6, kingdom Plantae)
+  overlayLayers['🌿 Plants (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=6',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Plantae</a>',
+    }
+  );
+
+  // 9d. GBIF — Reptiles (taxonKey=11, class Reptilia)
+  overlayLayers['🦎 Reptiles (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=11',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Reptilia</a>',
+    }
+  );
+
+  // 9e. GBIF — Amphibians (taxonKey=131, class Amphibia)
+  overlayLayers['🐸 Amphibians (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=131',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Amphibia</a>',
+    }
+  );
+
+  // 9f. GBIF — Lichens (taxonKey=7707728, order Graphidales + others — approximate)
+  overlayLayers['🧫 Lichens (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=7707728',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Lichens</a>',
+    }
+  );
+
+  // 9g. GBIF — Insects (taxonKey=216, class Insecta)
+  overlayLayers['🦟 Insects (GBIF)'] = L.tileLayer(
+    'https://api.gbif.org/v2/map/occurrence/density/{z}/{x}/{y}@1x.png?srs=EPSG:3857&style=classic.point&taxonKey=216',
+    {
+      maxZoom: 14,
+      opacity: 0.65,
+      attribution: '<a href="https://www.gbif.org">GBIF — Insecta</a>',
+    }
+  );
+
+  // 10. Esri World Hillshade (terrain shading overlay)
+  overlayLayers['⛰️ Hillshade'] = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+    {
+      maxZoom: 16,
+      opacity: 0.35,
+      attribution: 'Esri, Airbus DS, USGS, NGA, NASA, CGIAR, N Robinson, NCEAS, NLS, OS, NMA, Geodatastyrelsen, Rijkswaterstaat, GSA, Geoland, FEMA, Intermap and the GIS user community',
+    }
+  );
+
+  // Set default base layer
+  baseLayers['OpenStreetMap'].addTo(map);
+
+  // ─── Layer control ────────────────────────────────────────────────────────
+  L.control.layers(baseLayers, overlayLayers, {
+    position: 'topright',
+    collapsed: true,
+  }).addTo(map);
+
+  // ─── Custom marker icons ──────────────────────────────────────────────────
+  function makeIcon(color: string) {
+    return L.divIcon({
+      className: '',
+      html: `<div style="
+        width: 22px; height: 22px;
+        background: ${color};
+        border: 2px solid rgba(0,0,0,0.4);
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      "></div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 22],
+      popupAnchor: [0, -22],
+    });
+  }
+
+  const iconVisited  = makeIcon('#2D6A4F');
+  const iconWishlist = makeIcon('#b45309');
+
+  // ─── Markers layer group ──────────────────────────────────────────────────
+  let markersGroup = L.layerGroup().addTo(map);
+
+  function renderMarkers(swamps: any[]) {
+    markersGroup.clearLayers();
+
+    swamps.forEach(swamp => {
+      const { lat, lng } = swamp.coordinates;
+      const icon = swamp.status === 'visited' ? iconVisited : iconWishlist;
+      const statusLabel = swamp.status === 'visited'
+        ? '<span style="color:#2D6A4F;font-weight:600">✓ Visited</span>'
+        : '<span style="color:#b45309;font-weight:600">★ Want to Visit</span>';
+
+      const terrainTags = (swamp.tags?.terrain ?? [])
+        .slice(0, 3)
+        .map((t: string) => `<span style="
+          background:#f0f7f4;color:#2D6A4F;
+          border:1px solid #b3dbcb;border-radius:4px;
+          padding:1px 6px;font-size:10px;font-weight:500;
+          ">${t.replace(/-/g, ' ')}</span>`)
+        .join(' ');
+
+      const popup = `
+        <div style="font-family:Inter,system-ui,sans-serif;min-width:220px;max-width:280px">
+          <div style="margin-bottom:6px">${statusLabel}</div>
+          <h3 style="margin:0 0 4px;font-size:15px;font-weight:700;color:#0f3328;line-height:1.3">
+            <a href="/swamps/${swamp.slug}" style="color:inherit;text-decoration:none">
+              ${escapeHtml(swamp.name)}
+            </a>
+          </h3>
+          <p style="margin:0 0 8px;font-size:12px;color:#4a6358">
+            ${escapeHtml(swamp.county)}, ${escapeHtml(swamp.state)}
+          </p>
+          ${terrainTags ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px">${terrainTags}</div>` : ''}
+          ${swamp.description ? `<p style="margin:0 0 10px;font-size:12px;color:#374151;line-height:1.5">
+            ${escapeHtml(swamp.description.slice(0, 160))}${swamp.description.length > 160 ? '…' : ''}
+          </p>` : ''}
+          <a href="/swamps/${swamp.slug}"
+             style="display:inline-block;background:#1B4332;color:white;text-decoration:none;
+                    padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500">
+            View Details →
+          </a>
+        </div>
+      `;
+
+      L.marker([lat, lng], { icon, title: swamp.name })
+        .bindPopup(popup, { maxWidth: 300 })
+        .addTo(markersGroup);
+    });
+  }
+
+  // ─── XSS-safe HTML escape ─────────────────────────────────────────────────
+  function escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // ─── Initial render from page data ───────────────────────────────────────
+  const rawData = document.getElementById('swamps-data')?.textContent ?? '[]';
+  const allSwamps = JSON.parse(rawData);
+  renderMarkers(allSwamps);
+
+  // Fit map bounds to markers
+  if (allSwamps.length > 0) {
+    const latlngs = allSwamps.map((s: any) => [s.coordinates.lat, s.coordinates.lng]);
+    map.fitBounds(latlngs, { padding: [40, 40], maxZoom: 8 });
+  }
+
+  // ─── Listen for filter events ─────────────────────────────────────────────
+  window.addEventListener('swamps:filter', (e: Event) => {
+    const filtered = (e as CustomEvent).detail;
+    renderMarkers(filtered);
+    if (filtered.length > 0) {
+      const latlngs = filtered.map((s: any) => [s.coordinates.lat, s.coordinates.lng]);
+      map.fitBounds(latlngs, { padding: [40, 40], maxZoom: 10 });
+    }
+  });
+
+  // ─── eBird hotspots (via server-side proxy — key never in client JS) ────────
+  let eBirdLayer: any = null;
+  let eBirdEnabled = false;
+
+  // We add eBird as a custom overlay with a checkbox in the layer control
+  // by creating a dummy tile layer that we toggle ourselves
+  const eBirdToggleLayer = L.layerGroup();
+  overlayLayers['🦅 eBird Hotspots'] = eBirdToggleLayer;
+
+  const eBirdIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:10px;height:10px;
+      background:#e63946;
+      border:2px solid #9d0208;
+      border-radius:50%;
+      box-shadow:0 0 4px rgba(230,57,70,0.6);
+    "></div>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+    popupAnchor: [0, -8],
+  });
+
+  async function loadeBirdHotspots() {
+    const center = map.getCenter();
+    try {
+      const res = await fetch(
+        `/api/ebird-proxy?type=hotspots&lat=${center.lat.toFixed(4)}&lng=${center.lng.toFixed(4)}&dist=80`
+      );
+      if (!res.ok) return;
+      const hotspots: any[] = await res.json();
+      eBirdToggleLayer.clearLayers();
+      hotspots.slice(0, 200).forEach(h => {
+        L.marker([h.lat, h.lng], { icon: eBirdIcon, title: h.locName })
+          .bindPopup(`
+            <div style="font-family:Inter,sans-serif;min-width:180px">
+              <p style="font-weight:700;font-size:13px;color:#1a2e25;margin:0 0 4px">${escapeHtml(h.locName)}</p>
+              <p style="font-size:11px;color:#4a6358;margin:0 0 6px">${escapeHtml(h.subnational1Code ?? '')} · eBird Hotspot</p>
+              <a href="https://ebird.org/hotspot/${h.locId}" target="_blank" rel="noopener noreferrer"
+                 style="font-size:11px;color:#2D6A4F;text-decoration:underline">
+                View on eBird ↗
+              </a>
+            </div>
+          `, { maxWidth: 240 })
+          .addTo(eBirdToggleLayer);
+      });
+    } catch (err) {
+      console.warn('eBird hotspots unavailable:', err);
+    }
+  }
+
+  // Load eBird hotspots when layer is toggled on, reload on map move
+  map.on('overlayadd', (e: any) => {
+    if (e.name === '🦅 eBird Hotspots') {
+      eBirdEnabled = true;
+      loadeBirdHotspots();
+    }
+  });
+  map.on('overlayremove', (e: any) => {
+    if (e.name === '🦅 eBird Hotspots') {
+      eBirdEnabled = false;
+      eBirdToggleLayer.clearLayers();
+    }
+  });
+  map.on('moveend', () => {
+    if (eBirdEnabled) loadeBirdHotspots();
+  });
+
+  // ─── Legend ───────────────────────────────────────────────────────────────
+  const legend = L.control({ position: 'bottomleft' });
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div');
+    div.innerHTML = `
+      <div style="background:white;padding:8px 12px;border-radius:8px;
+                  border:1px solid #d1e0d8;font-family:Inter,sans-serif;font-size:12px;
+                  box-shadow:0 1px 3px rgba(0,0,0,0.12);">
+        <div style="font-weight:600;color:#0f3328;margin-bottom:5px">Legend</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <div style="width:14px;height:14px;background:#2D6A4F;border-radius:50% 50% 50% 0;
+                      transform:rotate(-45deg);border:2px solid rgba(0,0,0,0.3)"></div>
+          <span style="color:#374151">Visited</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:14px;height:14px;background:#b45309;border-radius:50% 50% 50% 0;
+                      transform:rotate(-45deg);border:2px solid rgba(0,0,0,0.3)"></div>
+          <span style="color:#374151">Want to Visit</span>
+        </div>
+      </div>
+    `;
+    return div;
+  };
+  legend.addTo(map);
+});
+</script>

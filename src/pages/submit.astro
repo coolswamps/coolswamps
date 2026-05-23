@@ -1,0 +1,636 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  US_STATES, TERRAIN_TYPES, HABITAT_TYPES, SOIL_TYPES,
+  WATER_TYPES, TOPOGRAPHY, ACTIVITIES, DIFFICULTY, SEASONS
+} from '../content/config';
+---
+
+<BaseLayout
+  title="Submit a Swamp"
+  description="Contribute a swamp, bog, fen, or wetland to the CoolSwamps database. All submissions are reviewed before publication."
+>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+    <!-- Page header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-swamp-900 mb-2">Submit a Swamp</h1>
+      <p class="text-swamp-600 leading-relaxed">
+        Help build the most comprehensive wetland database in existence. Your submission will be
+        reviewed before it appears on the site. All fields marked <span class="text-red-500 font-bold">*</span> are required.
+      </p>
+      <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+        <strong>How it works:</strong> Your submission opens a GitHub pull request for review.
+        No account required — all submissions are anonymous. Photos are automatically stripped
+        of all metadata (EXIF) before storage.
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form
+      id="submit-form"
+      class="space-y-8"
+      novalidate
+      enctype="multipart/form-data"
+    >
+      <!-- CSRF token (filled by JS) -->
+      <input type="hidden" id="csrf-token" name="csrf_token" value="" />
+
+      <!-- ── Section 1: Basic Info ─────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-basic">
+        <div class="card-header">
+          <h2 id="section-basic" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+            Basic Information
+          </h2>
+        </div>
+        <div class="card-body space-y-5">
+
+          <div>
+            <label for="name" class="form-label">
+              Swamp Name <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <input type="text" id="name" name="name" required
+                   maxlength="200" autocomplete="off"
+                   class="form-input" placeholder="e.g. Great Dismal Swamp" />
+            <p class="form-hint">Common name or local name for this wetland</p>
+          </div>
+
+          <div>
+            <label class="form-label" id="status-label">
+              Status <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <div class="flex gap-3 mt-1" role="radiogroup" aria-labelledby="status-label">
+              <label class="flex items-center gap-2 cursor-pointer group">
+                <input type="radio" name="status" value="visited" required
+                       class="w-4 h-4 accent-swamp-600" />
+                <span class="text-sm font-medium text-swamp-700 group-hover:text-swamp-900">
+                  ✓ I have visited this swamp
+                </span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer group">
+                <input type="radio" name="status" value="want-to-visit"
+                       class="w-4 h-4 accent-amber-600" />
+                <span class="text-sm font-medium text-swamp-700 group-hover:text-swamp-900">
+                  ★ I want to visit this swamp
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label for="description" class="form-label">Description</label>
+            <textarea id="description" name="description" rows="5"
+                      maxlength="5000" class="form-input resize-y"
+                      placeholder="Describe the swamp — its character, ecology, what makes it special…"></textarea>
+            <p class="form-hint">
+              <span id="desc-count">0</span>/5000 characters
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 2: Location ───────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-location">
+        <div class="card-header">
+          <h2 id="section-location" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+            Location
+          </h2>
+        </div>
+        <div class="card-body space-y-5">
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="state" class="form-label">
+                State <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <select id="state" name="state" required class="form-select">
+                <option value="">Select a state…</option>
+                {US_STATES.map(s => <option value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label for="county" class="form-label">
+                County <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <input type="text" id="county" name="county" required
+                     maxlength="100" class="form-input" placeholder="e.g. Charlton" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="lat" class="form-label">
+                Latitude <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <input type="number" id="lat" name="lat" required
+                     min="-90" max="90" step="any"
+                     class="form-input font-mono" placeholder="e.g. 36.5771" />
+              <p class="form-hint">Decimal degrees (e.g. 36.5771)</p>
+            </div>
+            <div>
+              <label for="lng" class="form-label">
+                Longitude <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <input type="number" id="lng" name="lng" required
+                     min="-180" max="180" step="any"
+                     class="form-input font-mono" placeholder="e.g. -76.4496" />
+              <p class="form-hint">Decimal degrees (negative for West)</p>
+            </div>
+          </div>
+
+          <!-- Map picker -->
+          <div>
+            <p class="form-label">Or click the map to set coordinates</p>
+            <div id="location-picker-map" style="height:280px" class="rounded-lg border border-swamp-200 overflow-hidden"></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="area_acres" class="form-label">Area (acres)</label>
+              <input type="number" id="area_acres" name="area_acres"
+                     min="0" step="0.1" class="form-input" placeholder="Optional" />
+            </div>
+            <div>
+              <label for="elevation_ft" class="form-label">Elevation (ft)</label>
+              <input type="number" id="elevation_ft" name="elevation_ft"
+                     step="1" class="form-input" placeholder="Optional" />
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 3: Terrain & Ecology ─────────────────────────────── -->
+      <section class="card" aria-labelledby="section-terrain">
+        <div class="card-header">
+          <h2 id="section-terrain" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+            Terrain & Ecology
+          </h2>
+        </div>
+        <div class="card-body space-y-6">
+
+          <!-- Terrain type -->
+          <div>
+            <p class="form-label">Terrain Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {TERRAIN_TYPES.map(t => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="terrain" value={t} class="w-4 h-4 accent-swamp-600 rounded" />
+                  <span class="capitalize">{t.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- Habitat type -->
+          <div>
+            <p class="form-label">Habitat Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {HABITAT_TYPES.map(h => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="habitat" value={h} class="w-4 h-4 accent-swamp-600 rounded" />
+                  <span class="capitalize">{h.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- Soil -->
+          <div>
+            <p class="form-label">Soil Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {SOIL_TYPES.map(s => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="soil" value={s} class="w-4 h-4 accent-swamp-600 rounded" />
+                  <span class="capitalize">{s.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- Water type -->
+          <div>
+            <p class="form-label">Water Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {WATER_TYPES.map(w => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="water_type" value={w} class="w-4 h-4 accent-swamp-600 rounded" />
+                  <span class="capitalize">{w.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- Topography -->
+          <div>
+            <p class="form-label">Topography</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {TOPOGRAPHY.map(t => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="topography" value={t} class="w-4 h-4 accent-swamp-600 rounded" />
+                  <span class="capitalize">{t.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <!-- Vegetation (free text tags) -->
+          <div>
+            <label for="vegetation" class="form-label">Vegetation / Plant Species</label>
+            <input type="text" id="vegetation" name="vegetation" class="form-input"
+                   placeholder="e.g. bald cypress, sphagnum moss, pitcher plant (comma-separated)" />
+            <p class="form-hint">Common or scientific names, comma-separated</p>
+          </div>
+
+          <!-- Wildlife notes -->
+          <div>
+            <label for="wildlife_notes" class="form-label">Wildlife & Ecology Notes</label>
+            <textarea id="wildlife_notes" name="wildlife_notes" rows="3"
+                      maxlength="2000" class="form-input resize-y"
+                      placeholder="Notable wildlife, rare species, ecological features…"></textarea>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 4: Activities & Access ───────────────────────────── -->
+      <section class="card" aria-labelledby="section-activities">
+        <div class="card-header">
+          <h2 id="section-activities" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+            Activities & Access
+          </h2>
+        </div>
+        <div class="card-body space-y-5">
+
+          <div>
+            <p class="form-label">Activities</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ACTIVITIES.map(a => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="activities" value={a} class="w-4 h-4 accent-swamp-600 rounded" />
+                  <span class="capitalize">{a.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="difficulty" class="form-label">Difficulty</label>
+              <select id="difficulty" name="difficulty" class="form-select">
+                <option value="">Not specified</option>
+                {DIFFICULTY.map(d => <option value={d} class="capitalize">{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <p class="form-label">Best Season(s)</p>
+              <div class="flex flex-wrap gap-3 mt-1">
+                {SEASONS.map(s => (
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700">
+                    <input type="checkbox" name="best_season" value={s} class="w-4 h-4 accent-swamp-600 rounded" />
+                    <span class="capitalize">{s}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label for="access_notes" class="form-label">Access & Directions</label>
+            <textarea id="access_notes" name="access_notes" rows="3"
+                      maxlength="2000" class="form-input resize-y"
+                      placeholder="How to get there, parking, permits required, entry fees…"></textarea>
+          </div>
+
+          <div>
+            <label for="historical_notes" class="form-label">Historical Notes</label>
+            <textarea id="historical_notes" name="historical_notes" rows="2"
+                      maxlength="2000" class="form-input resize-y"
+                      placeholder="Historical or cultural significance (optional)…"></textarea>
+          </div>
+
+          <div>
+            <label for="custom_tags" class="form-label">Custom Tags</label>
+            <input type="text" id="custom_tags" name="custom_tags" class="form-input"
+                   placeholder="e.g. national-park, alligator, carnivorous-plants (comma-separated)" />
+            <p class="form-hint">Any additional tags that don't fit the categories above</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 5: Photos ─────────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-photos">
+        <div class="card-header">
+          <h2 id="section-photos" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+            Photos
+          </h2>
+        </div>
+        <div class="card-body space-y-4">
+
+          <div class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-start gap-2">
+            <svg class="shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>
+              <strong>Privacy protected:</strong> All EXIF metadata (GPS location, device info, timestamps)
+              is automatically and completely stripped from your photos before they are stored or published.
+            </span>
+          </div>
+
+          <div>
+            <label for="photos" class="form-label">Upload Photos</label>
+            <div
+              id="drop-zone"
+              class="border-2 border-dashed border-swamp-300 rounded-xl p-8 text-center
+                     hover:border-swamp-500 hover:bg-swamp-50 transition-colors cursor-pointer"
+              role="button"
+              tabindex="0"
+              aria-label="Upload photos"
+            >
+              <svg class="mx-auto mb-3 text-swamp-400" width="36" height="36" viewBox="0 0 24 24"
+                   fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <p class="text-sm text-swamp-600 font-medium">Drop photos here or click to browse</p>
+              <p class="text-xs text-swamp-400 mt-1">JPEG, PNG, or WebP · max 10 MB each · up to 10 photos</p>
+              <input
+                type="file"
+                id="photos"
+                name="photos"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                aria-describedby="photo-hint"
+              />
+            </div>
+            <p id="photo-hint" class="form-hint">Photos must contain only the wetland itself. No people's faces without consent.</p>
+          </div>
+
+          <!-- Photo preview grid -->
+          <div id="photo-preview" class="hidden grid grid-cols-3 sm:grid-cols-4 gap-3"></div>
+          <p id="photo-error" class="form-error hidden"></p>
+
+        </div>
+      </section>
+
+      <!-- ── Submit ────────────────────────────────────────────────────── -->
+      <div class="flex flex-col sm:flex-row items-center gap-4 pt-2">
+        <button
+          type="submit"
+          id="submit-btn"
+          class="btn-primary w-full sm:w-auto px-8 py-3 text-base"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
+          </svg>
+          Submit for Review
+        </button>
+        <p class="text-sm text-swamp-500">
+          Submissions are reviewed within a few days before appearing on the site.
+        </p>
+      </div>
+
+      <!-- Status messages -->
+      <div id="form-success" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+        <p class="font-semibold">✓ Submission received!</p>
+        <p class="text-sm mt-1">Your swamp has been submitted for review. Thank you for contributing to the database!</p>
+      </div>
+      <div id="form-error-msg" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+        <p class="font-semibold">Submission failed</p>
+        <p id="form-error-detail" class="text-sm mt-1"></p>
+      </div>
+
+    </form>
+  </div>
+</BaseLayout>
+
+<!-- Leaflet for location picker -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GQnc=" crossorigin="anonymous" defer></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ─── CSRF token (random nonce, validated server-side) ──────────────────
+  const csrfToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+  (document.getElementById('csrf-token') as HTMLInputElement).value = csrfToken;
+  sessionStorage.setItem('csrf_token', csrfToken);
+
+  // ─── Char counter ──────────────────────────────────────────────────────
+  const desc = document.getElementById('description') as HTMLTextAreaElement;
+  const counter = document.getElementById('desc-count')!;
+  desc.addEventListener('input', () => { counter.textContent = String(desc.value.length); });
+
+  // ─── Location picker map ───────────────────────────────────────────────
+  const L = (window as any).L;
+  if (L) {
+    const pickerMap = L.map('location-picker-map', { center: [38, -96], zoom: 4 });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(pickerMap);
+
+    let pickerMarker: any = null;
+
+    const latInput = document.getElementById('lat') as HTMLInputElement;
+    const lngInput = document.getElementById('lng') as HTMLInputElement;
+
+    pickerMap.on('click', (e: any) => {
+      const { lat, lng } = e.latlng;
+      latInput.value = lat.toFixed(6);
+      lngInput.value = lng.toFixed(6);
+      if (pickerMarker) pickerMarker.setLatLng(e.latlng);
+      else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
+    });
+
+    // Sync marker if user types coordinates
+    function syncMarkerFromInputs() {
+      const lat = parseFloat(latInput.value);
+      const lng = parseFloat(lngInput.value);
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        if (pickerMarker) pickerMarker.setLatLng([lat, lng]);
+        else pickerMarker = L.marker([lat, lng]).addTo(pickerMap);
+        pickerMap.setView([lat, lng], 10);
+      }
+    }
+    latInput.addEventListener('change', syncMarkerFromInputs);
+    lngInput.addEventListener('change', syncMarkerFromInputs);
+  }
+
+  // ─── Photo upload & validation ─────────────────────────────────────────
+  const dropZone    = document.getElementById('drop-zone')!;
+  const fileInput   = document.getElementById('photos') as HTMLInputElement;
+  const preview     = document.getElementById('photo-preview')!;
+  const photoError  = document.getElementById('photo-error')!;
+
+  const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+  const MAX_FILES = 10;
+
+  let selectedFiles: File[] = [];
+
+  function showPhotoError(msg: string) {
+    photoError.textContent = msg;
+    photoError.classList.remove('hidden');
+    setTimeout(() => photoError.classList.add('hidden'), 5000);
+  }
+
+  function validateFiles(files: FileList | File[]): File[] {
+    const valid: File[] = [];
+    for (const file of Array.from(files)) {
+      if (!ALLOWED_TYPES.has(file.type)) {
+        showPhotoError(`${file.name}: only JPEG, PNG, and WebP are allowed.`);
+        continue;
+      }
+      if (file.size > MAX_SIZE_BYTES) {
+        showPhotoError(`${file.name}: exceeds 10 MB limit.`);
+        continue;
+      }
+      valid.push(file);
+    }
+    return valid;
+  }
+
+  function renderPreviews(files: File[]) {
+    preview.innerHTML = '';
+    if (files.length === 0) { preview.classList.add('hidden'); return; }
+    preview.classList.remove('hidden');
+    files.forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      const div = document.createElement('div');
+      div.className = 'relative rounded-lg overflow-hidden aspect-square bg-swamp-100';
+      div.innerHTML = `
+        <img src="${url}" alt="Preview ${i + 1}" class="w-full h-full object-cover" />
+        <button type="button" data-index="${i}"
+          class="absolute top-1 right-1 w-6 h-6 bg-black/60 hover:bg-black/80 text-white
+                 rounded-full flex items-center justify-center text-xs font-bold transition-colors"
+          aria-label="Remove photo ${i + 1}">✕</button>
+        <p class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1.5 py-0.5 truncate">
+          ${file.name}
+        </p>
+      `;
+      div.querySelector('button')?.addEventListener('click', () => {
+        selectedFiles.splice(i, 1);
+        renderPreviews(selectedFiles);
+      });
+      preview.appendChild(div);
+    });
+  }
+
+  function handleFiles(files: FileList | File[]) {
+    const valid = validateFiles(files);
+    const combined = [...selectedFiles, ...valid].slice(0, MAX_FILES);
+    if (selectedFiles.length + valid.length > MAX_FILES) {
+      showPhotoError(`Maximum ${MAX_FILES} photos allowed.`);
+    }
+    selectedFiles = combined;
+    renderPreviews(selectedFiles);
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files) handleFiles(fileInput.files);
+  });
+
+  dropZone.addEventListener('dragover', (e: DragEvent) => {
+    e.preventDefault();
+    dropZone.classList.add('border-swamp-500', 'bg-swamp-50');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('border-swamp-500', 'bg-swamp-50');
+  });
+  dropZone.addEventListener('drop', (e: DragEvent) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-swamp-500', 'bg-swamp-50');
+    if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
+  });
+
+  // ─── Form submission ───────────────────────────────────────────────────
+  const form = document.getElementById('submit-form') as HTMLFormElement;
+  const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+  const formSuccess = document.getElementById('form-success')!;
+  const formErrorMsg = document.getElementById('form-error-msg')!;
+  const formErrorDetail = document.getElementById('form-error-detail')!;
+
+  form.addEventListener('submit', async (e: Event) => {
+    e.preventDefault();
+
+    // Basic client-side validation
+    const nameVal = (document.getElementById('name') as HTMLInputElement).value.trim();
+    const latVal  = parseFloat((document.getElementById('lat') as HTMLInputElement).value);
+    const lngVal  = parseFloat((document.getElementById('lng') as HTMLInputElement).value);
+    const stateVal = (document.getElementById('state') as HTMLSelectElement).value;
+    const countyVal = (document.getElementById('county') as HTMLInputElement).value.trim();
+    const statusVals = form.querySelectorAll<HTMLInputElement>('input[name="status"]:checked');
+
+    if (!nameVal) { alert('Please enter a swamp name.'); return; }
+    if (!statusVals.length) { alert('Please select your status (visited or want to visit).'); return; }
+    if (!stateVal) { alert('Please select a state.'); return; }
+    if (!countyVal) { alert('Please enter a county.'); return; }
+    if (isNaN(latVal) || latVal < -90 || latVal > 90) { alert('Please enter a valid latitude (-90 to 90).'); return; }
+    if (isNaN(lngVal) || lngVal < -180 || lngVal > 180) { alert('Please enter a valid longitude (-180 to 180).'); return; }
+
+    // Build FormData
+    const fd = new FormData(form);
+
+    // Append selected files
+    selectedFiles.forEach((file, i) => fd.append(`photo_${i}`, file, file.name));
+    fd.set('photo_count', String(selectedFiles.length));
+
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+
+    try {
+      const res = await fetch('/api/submit-swamp', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: fd,
+      });
+
+      if (res.ok) {
+        form.reset();
+        selectedFiles = [];
+        renderPreviews([]);
+        formSuccess.classList.remove('hidden');
+        formErrorMsg.classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        formErrorDetail.textContent = data.error ?? 'An unexpected error occurred. Please try again.';
+        formErrorMsg.classList.remove('hidden');
+        formSuccess.classList.add('hidden');
+      }
+    } catch {
+      formErrorDetail.textContent = 'Network error. Please check your connection and try again.';
+      formErrorMsg.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2">
+          <path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
+        </svg>
+        Submit for Review
+      `;
+    }
+  });
+});
+</script>

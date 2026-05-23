@@ -1,0 +1,171 @@
+---
+interface Props {
+  swamps: any[];
+}
+const { swamps } = Astro.props;
+---
+
+<div class="overflow-hidden rounded-xl border border-swamp-200 shadow-sm">
+  <!-- Table result count -->
+  <div class="bg-swamp-50 px-4 py-2.5 border-b border-swamp-200 flex items-center justify-between">
+    <p class="text-sm text-swamp-700">
+      Showing <span id="table-count" class="font-semibold">{swamps.length}</span> wetlands
+    </p>
+    <p class="text-xs text-swamp-500 hidden sm:block">Click column headers to sort</p>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="data-table" id="swamp-table" aria-label="Swamp database">
+      <thead>
+        <tr>
+          <th data-col="name"       class="sort-header" aria-sort="none">
+            Name <span class="sort-icon ml-1 opacity-40">↕</span>
+          </th>
+          <th data-col="status"     class="sort-header" aria-sort="none">
+            Status <span class="sort-icon ml-1 opacity-40">↕</span>
+          </th>
+          <th data-col="state"      class="sort-header" aria-sort="none">
+            State <span class="sort-icon ml-1 opacity-40">↕</span>
+          </th>
+          <th data-col="county"     class="sort-header" aria-sort="none">
+            County <span class="sort-icon ml-1 opacity-40">↕</span>
+          </th>
+          <th data-col="difficulty" class="sort-header hidden md:table-cell" aria-sort="none">
+            Difficulty <span class="sort-icon ml-1 opacity-40">↕</span>
+          </th>
+          <th class="hidden lg:table-cell">Terrain</th>
+          <th class="hidden lg:table-cell">Activities</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        {swamps.map(swamp => (
+          <tr data-slug={swamp.slug} data-status={swamp.status} data-state={swamp.state}
+              data-county={swamp.county} data-difficulty={swamp.difficulty ?? ''}
+              data-name={swamp.name}>
+            <td class="font-medium text-swamp-900 max-w-[200px]">
+              <a href={`/swamps/${swamp.slug}`} class="hover:text-swamp-600 hover:underline">
+                {swamp.name}
+              </a>
+            </td>
+            <td>
+              {swamp.status === 'visited'
+                ? <span class="badge-visited">✓ Visited</span>
+                : <span class="badge-wishlist">★ Want to Visit</span>
+              }
+            </td>
+            <td class="text-gray-600">{swamp.state}</td>
+            <td class="text-gray-600">{swamp.county}</td>
+            <td class="hidden md:table-cell text-gray-600 capitalize">
+              {swamp.difficulty ?? '—'}
+            </td>
+            <td class="hidden lg:table-cell">
+              <div class="flex flex-wrap gap-1">
+                {(swamp.tags?.terrain ?? []).slice(0, 2).map((t: string) => (
+                  <span class="badge-tag">{t.replace(/-/g, ' ')}</span>
+                ))}
+              </div>
+            </td>
+            <td class="hidden lg:table-cell">
+              <div class="flex flex-wrap gap-1">
+                {(swamp.tags?.activities ?? []).slice(0, 2).map((a: string) => (
+                  <span class="badge-tag">{a.replace(/-/g, ' ')}</span>
+                ))}
+              </div>
+            </td>
+            <td>
+              <a href={`/swamps/${swamp.slug}`}
+                 class="text-swamp-600 hover:text-swamp-800 text-sm font-medium hover:underline">
+                View →
+              </a>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty state -->
+  <div id="table-empty" class="hidden py-16 text-center">
+    <svg class="mx-auto mb-3 text-swamp-300" width="40" height="40" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <p class="text-swamp-500 font-medium">No swamps match your filters</p>
+    <p class="text-swamp-400 text-sm mt-1">Try adjusting your search or filter criteria</p>
+  </div>
+</div>
+
+<script>
+  // ─── Sorting ──────────────────────────────────────────────────────────────
+  const tbody       = document.getElementById('table-body')!;
+  const countEl     = document.getElementById('table-count')!;
+  const emptyState  = document.getElementById('table-empty')!;
+  const tableEl     = document.getElementById('swamp-table')!;
+
+  let sortCol = '';
+  let sortDir: 'asc' | 'desc' = 'asc';
+
+  const DIFFICULTY_ORDER: Record<string, number> = {
+    easy: 1, moderate: 2, difficult: 3, expert: 4, '': 5
+  };
+
+  document.querySelectorAll<HTMLElement>('.sort-header').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col!;
+      if (sortCol === col) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortCol = col;
+        sortDir = 'asc';
+      }
+      // Update aria-sort on all headers
+      document.querySelectorAll<HTMLElement>('.sort-header').forEach(h => {
+        h.setAttribute('aria-sort', 'none');
+        const icon = h.querySelector('.sort-icon')!;
+        icon.textContent = '↕';
+        icon.classList.replace('opacity-100', 'opacity-40');
+      });
+      th.setAttribute('aria-sort', sortDir === 'asc' ? 'ascending' : 'descending');
+      const icon = th.querySelector('.sort-icon')!;
+      icon.textContent = sortDir === 'asc' ? '↑' : '↓';
+      icon.classList.replace('opacity-40', 'opacity-100');
+
+      sortRows();
+    });
+  });
+
+  function sortRows() {
+    const rows = [...tbody.querySelectorAll<HTMLTableRowElement>('tr:not(.hidden)')];
+    rows.sort((a, b) => {
+      let aVal = a.dataset[sortCol] ?? '';
+      let bVal = b.dataset[sortCol] ?? '';
+      if (sortCol === 'difficulty') {
+        const diff = (DIFFICULTY_ORDER[aVal] ?? 5) - (DIFFICULTY_ORDER[bVal] ?? 5);
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      const cmp = aVal.localeCompare(bVal, undefined, { sensitivity: 'base' });
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    rows.forEach(row => tbody.appendChild(row));
+  }
+
+  // ─── Filter event (from index.astro) ─────────────────────────────────────
+  window.addEventListener('swamps:table-filter', (e: Event) => {
+    const filtered: any[] = (e as CustomEvent).detail;
+    const filteredSlugs = new Set(filtered.map(s => s.slug));
+
+    let visible = 0;
+    tbody.querySelectorAll<HTMLTableRowElement>('tr').forEach(row => {
+      const show = filteredSlugs.has(row.dataset.slug!);
+      row.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+
+    countEl.textContent = String(visible);
+    emptyState.classList.toggle('hidden', visible > 0);
+    tableEl.classList.toggle('hidden', visible === 0);
+
+    if (sortCol) sortRows();
+  });
+</script>

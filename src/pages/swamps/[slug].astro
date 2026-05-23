@@ -1,0 +1,408 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const swamps = await getCollection('swamps');
+  return swamps.map(entry => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const swamp = entry.data;
+
+const terrainLabels = swamp.tags?.terrain?.map((t: string) => t.replace(/-/g, ' ')) ?? [];
+const activityLabels = swamp.tags?.activities?.map((a: string) => a.replace(/-/g, ' ')) ?? [];
+const soilLabels = swamp.tags?.soil?.map((s: string) => s.replace(/-/g, ' ')) ?? [];
+const waterLabels = swamp.tags?.water_type?.map((w: string) => w.replace(/-/g, ' ')) ?? [];
+const topoLabels = swamp.tags?.topography?.map((t: string) => t.replace(/-/g, ' ')) ?? [];
+const vegLabels = swamp.tags?.vegetation ?? [];
+const customLabels = swamp.tags?.custom ?? [];
+
+const hasCoords = swamp.coordinates?.lat && swamp.coordinates?.lng;
+const googleMapsUrl = hasCoords
+  ? `https://www.google.com/maps?q=${swamp.coordinates.lat},${swamp.coordinates.lng}`
+  : null;
+
+// JSON-LD structured data for this swamp
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Place",
+  "name": swamp.name,
+  "description": swamp.description ?? '',
+  "geo": hasCoords ? {
+    "@type": "GeoCoordinates",
+    "latitude": swamp.coordinates.lat,
+    "longitude": swamp.coordinates.lng,
+  } : undefined,
+  "address": {
+    "@type": "PostalAddress",
+    "addressRegion": swamp.state,
+    "addressLocality": swamp.county,
+    "addressCountry": swamp.country ?? 'US',
+  }
+});
+---
+
+<BaseLayout
+  title={swamp.name}
+  description={swamp.description?.slice(0, 160) ?? `${swamp.name} — a wetland in ${swamp.county}, ${swamp.state}.`}
+>
+  <!-- JSON-LD structured data -->
+  <script type="application/ld+json" set:html={jsonLd}></script>
+
+  <div class="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-swamp-500 mb-6" aria-label="Breadcrumb">
+      <a href="/" class="hover:text-swamp-700 transition-colors">Home</a>
+      <span aria-hidden="true">›</span>
+      <a href="/?view=table" class="hover:text-swamp-700 transition-colors">Database</a>
+      <span aria-hidden="true">›</span>
+      <span class="text-swamp-800 font-medium" aria-current="page">{swamp.name}</span>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-8">
+      <div class="flex flex-wrap items-start gap-3 mb-3">
+        {swamp.status === 'visited'
+          ? <span class="badge-visited text-sm px-3 py-1">✓ Visited</span>
+          : <span class="badge-wishlist text-sm px-3 py-1">★ Want to Visit</span>
+        }
+        {swamp.verified && (
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold
+                        bg-blue-50 text-blue-700 border border-blue-200">
+            ✓ Verified
+          </span>
+        )}
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-swamp-900 mb-2 text-balance">
+        {swamp.name}
+      </h1>
+      <p class="text-lg text-swamp-600">
+        {swamp.county} County, {swamp.state}
+        {swamp.area_acres && (
+          <span class="text-swamp-400 mx-2">·</span>
+          <span>{swamp.area_acres.toLocaleString()} acres</span>
+        )}
+        {swamp.elevation_ft !== undefined && (
+          <span class="text-swamp-400 mx-2">·</span>
+          <span>{swamp.elevation_ft} ft elevation</span>
+        )}
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- Main content -->
+      <div class="lg:col-span-2 space-y-6">
+
+        <!-- Photos (placeholder) -->
+        {swamp.photos.length === 0 && (
+          <div class="card">
+            <div class="card-body">
+              <div class="aspect-video bg-swamp-50 rounded-lg flex items-center justify-center border-2 border-dashed border-swamp-200">
+                <div class="text-center">
+                  <svg class="mx-auto mb-2 text-swamp-300" width="36" height="36" viewBox="0 0 24 24"
+                       fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                  <p class="text-sm text-swamp-400">No photos yet</p>
+                  <a href="/submit" class="text-xs text-swamp-600 hover:underline mt-1 inline-block">
+                    Submit photos →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <!-- Photos grid (when photos exist) -->
+        {swamp.photos.length > 0 && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Photos</h2>
+            </div>
+            <div class="card-body">
+              <div class="grid grid-cols-2 gap-3">
+                {swamp.photos.map((photo: any) => (
+                  <figure class="relative rounded-lg overflow-hidden aspect-video bg-swamp-100">
+                    <img
+                      src={`/photos/${photo.filename}`}
+                      alt={photo.caption ?? swamp.name}
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                    {photo.caption && (
+                      <figcaption class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1">
+                        {photo.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <!-- Description -->
+        {swamp.description && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Description</h2>
+            </div>
+            <div class="card-body">
+              <p class="text-gray-700 leading-relaxed">{swamp.description}</p>
+            </div>
+          </div>
+        )}
+
+        <!-- Wildlife & Ecology -->
+        {swamp.wildlife_notes && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Wildlife & Ecology</h2>
+            </div>
+            <div class="card-body">
+              <p class="text-gray-700 leading-relaxed">{swamp.wildlife_notes}</p>
+            </div>
+          </div>
+        )}
+
+        <!-- History -->
+        {swamp.historical_notes && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Historical Notes</h2>
+            </div>
+            <div class="card-body">
+              <p class="text-gray-700 leading-relaxed">{swamp.historical_notes}</p>
+            </div>
+          </div>
+        )}
+
+        <!-- Access Notes -->
+        {swamp.access_notes && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Access & Directions</h2>
+            </div>
+            <div class="card-body">
+              <p class="text-gray-700 leading-relaxed">{swamp.access_notes}</p>
+              {googleMapsUrl && (
+                <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer"
+                   class="mt-4 btn-secondary inline-flex text-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  View on Google Maps ↗
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        <!-- Mini map for this swamp -->
+        {hasCoords && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Location</h2>
+            </div>
+            <div class="card-body p-0 overflow-hidden rounded-b-xl">
+              <div id="swamp-mini-map" style="height:280px;width:100%"></div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <!-- Sidebar -->
+      <div class="space-y-5">
+
+        <!-- Quick facts -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="text-base font-semibold text-swamp-900">Quick Facts</h2>
+          </div>
+          <div class="card-body space-y-3 text-sm">
+            <div class="flex justify-between gap-2">
+              <span class="text-swamp-500 font-medium">State</span>
+              <span class="text-swamp-900 text-right">{swamp.state}</span>
+            </div>
+            <div class="flex justify-between gap-2">
+              <span class="text-swamp-500 font-medium">County</span>
+              <span class="text-swamp-900 text-right">{swamp.county}</span>
+            </div>
+            {swamp.area_acres && (
+              <div class="flex justify-between gap-2">
+                <span class="text-swamp-500 font-medium">Area</span>
+                <span class="text-swamp-900">{swamp.area_acres.toLocaleString()} ac</span>
+              </div>
+            )}
+            {swamp.elevation_ft !== undefined && (
+              <div class="flex justify-between gap-2">
+                <span class="text-swamp-500 font-medium">Elevation</span>
+                <span class="text-swamp-900">{swamp.elevation_ft} ft</span>
+              </div>
+            )}
+            {swamp.difficulty && (
+              <div class="flex justify-between gap-2">
+                <span class="text-swamp-500 font-medium">Difficulty</span>
+                <span class="text-swamp-900 capitalize">{swamp.difficulty}</span>
+              </div>
+            )}
+            {swamp.best_season?.length > 0 && (
+              <div class="flex justify-between gap-2">
+                <span class="text-swamp-500 font-medium">Best Season</span>
+                <span class="text-swamp-900 text-right capitalize">
+                  {swamp.best_season.join(', ')}
+                </span>
+              </div>
+            )}
+            {hasCoords && (
+              <div class="flex justify-between gap-2">
+                <span class="text-swamp-500 font-medium">Coordinates</span>
+                <span class="text-swamp-900 font-mono text-xs text-right">
+                  {swamp.coordinates.lat.toFixed(4)}, {swamp.coordinates.lng.toFixed(4)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <!-- Terrain & Habitat -->
+        {(terrainLabels.length > 0 || soilLabels.length > 0 || waterLabels.length > 0 || topoLabels.length > 0) && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Terrain & Habitat</h2>
+            </div>
+            <div class="card-body space-y-4 text-sm">
+              {terrainLabels.length > 0 && (
+                <div>
+                  <p class="text-swamp-500 font-medium text-xs uppercase tracking-wider mb-1.5">Terrain Type</p>
+                  <div class="flex flex-wrap gap-1">
+                    {terrainLabels.map((t: string) => <span class="badge-tag capitalize">{t}</span>)}
+                  </div>
+                </div>
+              )}
+              {soilLabels.length > 0 && (
+                <div>
+                  <p class="text-swamp-500 font-medium text-xs uppercase tracking-wider mb-1.5">Soil</p>
+                  <div class="flex flex-wrap gap-1">
+                    {soilLabels.map((s: string) => <span class="badge-tag capitalize">{s}</span>)}
+                  </div>
+                </div>
+              )}
+              {waterLabels.length > 0 && (
+                <div>
+                  <p class="text-swamp-500 font-medium text-xs uppercase tracking-wider mb-1.5">Water Type</p>
+                  <div class="flex flex-wrap gap-1">
+                    {waterLabels.map((w: string) => <span class="badge-tag capitalize">{w}</span>)}
+                  </div>
+                </div>
+              )}
+              {topoLabels.length > 0 && (
+                <div>
+                  <p class="text-swamp-500 font-medium text-xs uppercase tracking-wider mb-1.5">Topography</p>
+                  <div class="flex flex-wrap gap-1">
+                    {topoLabels.map((t: string) => <span class="badge-tag capitalize">{t}</span>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <!-- Activities -->
+        {activityLabels.length > 0 && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Activities</h2>
+            </div>
+            <div class="card-body">
+              <div class="flex flex-wrap gap-1.5">
+                {activityLabels.map((a: string) => <span class="badge-tag capitalize">{a}</span>)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <!-- Vegetation -->
+        {vegLabels.length > 0 && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Vegetation</h2>
+            </div>
+            <div class="card-body">
+              <div class="flex flex-wrap gap-1.5">
+                {vegLabels.map((v: string) => <span class="badge-tag italic">{v.replace(/-/g, ' ')}</span>)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <!-- Custom tags -->
+        {customLabels.length > 0 && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Notable Features</h2>
+            </div>
+            <div class="card-body">
+              <div class="flex flex-wrap gap-1.5">
+                {customLabels.map((c: string) => (
+                  <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                bg-blue-50 text-blue-700 border border-blue-200">
+                    {c.replace(/-/g, ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <!-- Meta -->
+        <div class="text-xs text-swamp-400 space-y-1 px-1">
+          <p>Submitted: {swamp.submitted_date}</p>
+          <p>Last updated: {swamp.last_updated}</p>
+          <a href="/submit" class="text-swamp-500 hover:text-swamp-700 hover:underline">
+            Suggest an edit →
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<!-- Mini map for individual swamp page -->
+{hasCoords && (
+  <>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GQnc=" crossorigin="anonymous" defer></script>
+    <script define:vars={{ lat: swamp.coordinates.lat, lng: swamp.coordinates.lng, name: swamp.name, status: swamp.status }}>
+      document.addEventListener('DOMContentLoaded', () => {
+        const L = window.L;
+        if (!L || !document.getElementById('swamp-mini-map')) return;
+        const map = L.map('swamp-mini-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 11);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }).addTo(map);
+        const color = status === 'visited' ? '#2D6A4F' : '#b45309';
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:22px;height:22px;background:${color};border:2px solid rgba(0,0,0,0.4);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:2px 2px 4px rgba(0,0,0,0.3)"></div>`,
+          iconSize: [22, 22], iconAnchor: [11, 22],
+        });
+        L.marker([lat, lng], { icon, title: name }).addTo(map);
+      });
+    </script>
+  </>
+)}

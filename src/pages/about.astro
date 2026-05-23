@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const swamps = await getCollection('swamps');
+const count = swamps.length;
+---
+
+<BaseLayout
+  title="About"
+  description="About CoolSwamps — a community-driven scientific database of swamps, bogs, fens, and wetlands."
+>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <h1 class="text-3xl font-bold text-swamp-900 mb-2">About CoolSwamps</h1>
+    <p class="text-swamp-500 text-lg mb-8">A community-built scientific database of wetlands.</p>
+
+    <div class="prose prose-swamp max-w-none space-y-6 text-gray-700 leading-relaxed">
+
+      <p>
+        <strong>CoolSwamps</strong> is an open, community-contributed database of swamps, bogs, fens,
+        pocosins, bottomland forests, and other wetland ecosystems across the United States. Currently
+        cataloguing <strong>{count} wetlands</strong>, the site is growing through community submissions.
+      </p>
+
+      <h2 class="text-xl font-semibold text-swamp-900 mt-8 mb-3">Why wetlands matter</h2>
+      <p>
+        Wetlands are among the most biodiverse and ecologically critical ecosystems on Earth. They
+        filter water, sequester carbon, buffer floods, and support an extraordinary concentration of
+        plant and animal life. Despite this, wetlands have been drained, filled, and degraded at an
+        alarming rate — the continental United States has lost more than half of its original wetland
+        acreage since European settlement.
+      </p>
+      <p>
+        CoolSwamps exists to document, celebrate, and raise awareness of these places.
+      </p>
+
+      <h2 class="text-xl font-semibold text-swamp-900 mt-8 mb-3">How data gets in</h2>
+      <p>
+        Anyone can submit a swamp via the <a href="/submit">submission form</a>. Submissions are
+        anonymous — no account required. Each submission creates a GitHub pull request that is
+        reviewed by a human before appearing on the site. Data is stored as open JSON files in a
+        public GitHub repository.
+      </p>
+      <p>
+        Photos submitted with a swamp are <strong>automatically stripped of all EXIF metadata</strong>
+        (including GPS coordinates, device information, and timestamps) before storage.
+      </p>
+
+      <h2 class="text-xl font-semibold text-swamp-900 mt-8 mb-3">Map data sources</h2>
+      <ul class="list-disc list-inside space-y-1">
+        <li><a href="https://www.openstreetmap.org" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> — base map</li>
+        <li><a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank" rel="noopener noreferrer">USGS National Map</a> — topographic & satellite imagery</li>
+        <li><a href="https://opentopomap.org" target="_blank" rel="noopener noreferrer">OpenTopoMap</a> — contour topography</li>
+        <li><a href="https://www.fws.gov/program/national-wetlands-inventory" target="_blank" rel="noopener noreferrer">USFWS National Wetlands Inventory</a> — wetland boundaries</li>
+        <li><a href="https://websoilsurvey.nrcs.usda.gov" target="_blank" rel="noopener noreferrer">USDA Web Soil Survey</a> — soil classification</li>
+        <li><a href="https://www.mrlc.gov" target="_blank" rel="noopener noreferrer">USGS National Land Cover Database</a> — land cover</li>
+        <li><a href="https://www.gbif.org" target="_blank" rel="noopener noreferrer">GBIF</a> — species occurrence data</li>
+        <li><a href="https://www.inaturalist.org" target="_blank" rel="noopener noreferrer">iNaturalist</a> — community species observations</li>
+      </ul>
+
+      <h2 class="text-xl font-semibold text-swamp-900 mt-8 mb-3">Open source</h2>
+      <p>
+        The entire site is open source. The codebase and all swamp data live in the
+        <a href="https://github.com/coolswamps/coolswamps" target="_blank" rel="noopener noreferrer">
+          coolswamps/coolswamps GitHub repository
+        </a>.
+        Contributions, corrections, and bug reports are welcome.
+      </p>
+
+      <div class="mt-10 flex gap-3">
+        <a href="/submit" class="btn-primary">Submit a Swamp</a>
+        <a href="/" class="btn-secondary">View the Map</a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
