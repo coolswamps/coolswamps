@@ -103,16 +103,20 @@ function isValidImageBuffer(buf, mimeType) {
   return false;
 }
 
-/** Generate a URL-safe slug from swamp name + random suffix */
+/**
+ * Generate a URL-safe slug from swamp name.
+ * No random suffix needed — the caller prepends a timestamp to branch names
+ * and the slug is only used for the content file path (which is commit-unique).
+ */
 function makeSlug(name) {
-  const base = name
+  return name
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
-    .slice(0, 60);
-  const suffix = randomBytes(3).toString('hex');
-  return `${base}-${suffix}`;
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+    || `swamp-${randomBytes(3).toString('hex')}`;
 }
 
 /** GitHub API helper */
@@ -306,7 +310,11 @@ export default async function handler(req, res) {
   }
 
   // ── 6. Build swamp JSON ───────────────────────────────────────────────
-  const slug = makeSlug(name);
+  // Use Date.now() as a submission ID — guarantees branch name uniqueness even
+  // under concurrent submissions of the same swamp name (mirrors republican-business-map).
+  // The file slug stays human-readable for clean URLs; only the branch gets the timestamp prefix.
+  const submissionId = Date.now().toString();
+  const slug  = makeSlug(name);
   const today = new Date().toISOString().split('T')[0];
 
   const swampData = {
@@ -339,8 +347,10 @@ export default async function handler(req, res) {
     );
     const baseSha = baseRef.object.sha;
 
-    // Create new branch
-    const branchName = `submit/${slug}`;
+    // Branch name = submission/{timestamp}-{slug}
+    // The timestamp prefix guarantees uniqueness under concurrent submissions and retries.
+    // Multiple open PRs each add a single new file, so they can never conflict with each other.
+    const branchName = `submission/${submissionId}-${slug}`;
     await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/refs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -384,32 +394,57 @@ export default async function handler(req, res) {
       });
     }
 
-    // Open pull request
+    // Open pull request — one file added, zero files modified, so no other open PR
+    // can ever conflict with this one. Merging in any order is always safe.
+    const mapLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=14`;
+    const gbifLink = `https://www.gbif.org/occurrence/map?decimalLatitude=${(lat-0.1).toFixed(3)},${(lat+0.1).toFixed(3)}&decimalLongitude=${(lng-0.1).toFixed(3)},${(lng+0.1).toFixed(3)}`;
+
     const prBody = [
-      `## New Swamp Submission: ${name}`,
+      `## New Swamp Submission`,
+      ``,
+      `> **Merging this PR will automatically publish the swamp to the live map.** Vercel rebuilds on merge — no other steps required.`,
       ``,
       `| Field | Value |`,
       `|-------|-------|`,
+      `| **Name** | ${name} |`,
       `| **Status** | ${status} |`,
       `| **State** | ${state} |`,
-      `| **County** | ${county} |`,
-      `| **Coordinates** | ${lat}, ${lng} |`,
+      `| **County** | ${county} County |`,
+      `| **Coordinates** | ${lat.toFixed(6)}, ${lng.toFixed(6)} |`,
       `| **Terrain** | ${terrain.join(', ') || '—'} |`,
       `| **Activities** | ${activities.join(', ') || '—'} |`,
-      `| **Photos** | ${processedPhotos.length} (all EXIF stripped) |`,
+      `| **Difficulty** | ${difficulty || '—'} |`,
+      `| **Best Season** | ${best_season.join(', ') || '—'} |`,
+      `| **Area** | ${area_acres ? `${area_acres.toLocaleString()} acres` : '—'} |`,
+      `| **Photos** | ${processedPhotos.length} uploaded (EXIF fully stripped) |`,
       ``,
-      `### Description`,
-      description || '_No description provided_',
+      `**[📍 Verify map pin location](${mapLink})**`,
+      `**[🌿 View nearby GBIF species](${gbifLink})**`,
       ``,
-      `> ⚠️ Review all content before merging. EXIF data has been stripped from all photos.`,
-      `> Submitted anonymously via coolswamps.com`,
-    ].join('\n');
+      description ? `### Description\n${description}` : `### Description\n_No description provided._`,
+      ``,
+      access_notes   ? `### Access Notes\n${access_notes}`   : '',
+      wildlife_notes ? `### Wildlife Notes\n${wildlife_notes}` : '',
+      ``,
+      `### Review checklist`,
+      `- [ ] Swamp name is real and correctly spelled`,
+      `- [ ] State and county are accurate`,
+      `- [ ] Map pin location looks correct (see link above)`,
+      `- [ ] Description is appropriate and factual`,
+      processedPhotos.length > 0
+        ? `- [ ] Photos show the actual location (${processedPhotos.length} attached)`
+        : `- [ ] No photos submitted`,
+      `- [ ] No personal information in any field`,
+      ``,
+      `---`,
+      `_Submitted anonymously via coolswamps.com · Submission ID: ${submissionId}_`,
+    ].filter(s => s !== '').join('\n');
 
     await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/pulls`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: `New swamp: ${name} (${state})`,
+        title: `Submission: ${name} — ${county} County, ${state}`,
         body: prBody,
         head: branchName,
         base: BASE_BRANCH,

@@ -6,24 +6,24 @@
 
 @layer base {
   :root {
-    /* ── Dark scientific theme ── */
-    --color-bg:          #0d1a12;
-    --color-surface:     #121f17;
-    --color-surface-2:   #182b1e;
-    --color-border:      #243d2c;
-    --color-border-2:    #1a3022;
-    --color-text:        #d6ede0;
-    --color-text-muted:  #6b9b7e;
-    --color-text-faint:  #3f6650;
-    --color-primary:     #2d6a4f;
-    --color-accent:      #52b788;
-    --color-accent-2:    #74c69d;
-    --color-visited:     #52b788;
-    --color-wishlist:    #d4a017;
-    --color-error:       #f87171;
+    /* ── Light scientific theme ── */
+    --color-bg:          #f8fafc;
+    --color-surface:     #ffffff;
+    --color-surface-2:   #f1f5f9;
+    --color-border:      #e2e8f0;
+    --color-border-2:    #f1f5f9;
+    --color-text:        #0f172a;
+    --color-text-muted:  #64748b;
+    --color-text-faint:  #94a3b8;
+    --color-primary:     #0f766e;
+    --color-accent:      #0d9488;
+    --color-accent-2:    #14b8a6;
+    --color-visited:     #0d9488;
+    --color-wishlist:    #ea580c;
+    --color-error:       #dc2626;
   }
 
-  html { @apply scroll-smooth; font-family: 'Inter', 'Source Sans 3', system-ui, sans-serif; }
+  html { @apply scroll-smooth; font-family: 'Inter', 'Source Sans Pro', system-ui, sans-serif; }
 
   body {
     background-color: var(--color-bg);
@@ -38,11 +38,11 @@
   }
 
   a { color: var(--color-accent); }
-  a:hover { color: var(--color-accent-2); @apply transition-colors; }
+  a:hover { color: var(--color-primary); @apply transition-colors; }
 
   ::selection {
-    background: #2d6a4f66;
-    color: #d6ede0;
+    background: #ccfbf1;
+    color: #0f766e;
   }
 }
 
@@ -53,33 +53,33 @@
     @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg
            font-medium text-sm transition-colors shadow-sm
            focus:outline-none focus:ring-2 focus:ring-offset-2;
-    background-color: #1e4d35;
-    color: #a8d8bb;
-    border: 1px solid #2d6a4f;
-    --tw-ring-color: #2d6a4f;
+    background-color: #0f766e;
+    color: #ffffff;
+    border: 1px solid #0d9488;
+    --tw-ring-color: #0d9488;
     --tw-ring-offset-color: var(--color-bg);
   }
-  .btn-primary:hover { background-color: #2d6a4f; color: #d6ede0; }
-  .btn-primary:active { background-color: #1b4332; }
+  .btn-primary:hover { background-color: #0d9488; color: #ffffff; }
+  .btn-primary:active { background-color: #115e59; }
 
   .btn-secondary {
     @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-lg
            font-medium text-sm transition-colors shadow-sm
            focus:outline-none focus:ring-2 focus:ring-offset-2;
-    background-color: var(--color-surface-2);
+    background-color: var(--color-surface);
     color: var(--color-accent);
     border: 1px solid var(--color-border);
-    --tw-ring-color: #2d6a4f;
+    --tw-ring-color: #0d9488;
     --tw-ring-offset-color: var(--color-bg);
   }
-  .btn-secondary:hover { background-color: #1e3d2a; color: var(--color-accent-2); }
+  .btn-secondary:hover { background-color: #f0fdfa; color: var(--color-primary); }
 
   .btn-ghost {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
            font-medium text-sm transition-colors
            focus:outline-none focus:ring-2;
     color: var(--color-text-muted);
-    --tw-ring-color: #2d6a4f;
+    --tw-ring-color: #0d9488;
   }
   .btn-ghost:hover { background-color: var(--color-surface-2); color: var(--color-text); }
 
@@ -89,7 +89,7 @@
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
   }
-  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
 
   .card-header {
     @apply px-6 py-4;
@@ -100,34 +100,34 @@
   /* ── Badges ───────────────────────────────────────────────────────── */
   .badge-visited {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
-    background: #0d2b1a;
-    color: #52b788;
-    border: 1px solid #1e4d35;
+    background: #f0fdfa;
+    color: #0d9488;
+    border: 1px solid #99f6e4;
   }
   .badge-wishlist {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
-    background: #2a1f06;
-    color: #d4a017;
-    border: 1px solid #4a3510;
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #fed7aa;
   }
   .badge-tag {
     @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
-    background: #0f2218;
-    color: #6b9b7e;
-    border: 1px solid #1e3d2a;
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
   }
 
   /* ── Form elements ────────────────────────────────────────────────── */
   .form-input {
     @apply block w-full rounded-lg px-3.5 py-2.5 text-sm shadow-sm transition-colors
            focus:outline-none focus:ring-2;
-    background-color: #0a1510;
+    background-color: #ffffff;
     color: var(--color-text);
     border: 1px solid var(--color-border);
-    --tw-ring-color: #2d6a4f;
+    --tw-ring-color: #0d9488;
   }
   .form-input::placeholder { color: var(--color-text-faint); }
-  .form-input:focus { border-color: #2d6a4f; }
+  .form-input:focus { border-color: #0d9488; }
 
   .form-label {
     @apply block text-sm font-medium mb-1.5;
@@ -142,14 +142,14 @@
     background-repeat: no-repeat;
     background-position: right 0.5rem center;
     background-size: 1.25rem;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b9b7e'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
   }
 
   /* ── Map container ────────────────────────────────────────────────── */
   #swamp-map {
     @apply w-full rounded-xl shadow-sm;
     border: 1px solid var(--color-border);
-    height: calc(100vh - 160px);
+    height: calc(100vh - 130px);
     min-height: 500px;
   }
 
@@ -159,13 +159,13 @@
   .data-table thead th {
     @apply px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none transition-colors;
     background-color: var(--color-surface-2);
-    color: var(--color-accent);
+    color: var(--color-primary);
     border-bottom: 1px solid var(--color-border);
   }
-  .data-table thead th:hover { background-color: #1e3d2a; }
+  .data-table thead th:hover { background-color: #e0f2f1; }
 
   .data-table tbody tr { border-bottom: 1px solid var(--color-border-2); transition: background 0.15s; }
-  .data-table tbody tr:hover { background-color: #121f17; }
+  .data-table tbody tr:hover { background-color: #f8fafc; }
   .data-table tbody td { @apply px-4 py-3; color: var(--color-text-muted); }
 
   /* ── Misc ─────────────────────────────────────────────────────────── */
@@ -178,46 +178,43 @@
   .text-balance { text-wrap: balance; }
 }
 
-/* ── Leaflet z-index containment ─────────────────────────────────────────── */
-/* Keep map controls below the sticky header (z-50 = z-index 50) so they     */
-/* don't bleed over it when the page scrolls.                                 */
-.leaflet-top,
-.leaflet-bottom {
-  z-index: 45 !important;
+/* ── Leaflet light theme overrides ───────────────────────────────────────── */
+.leaflet-container {
+  background: #e5e7eb !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
 }
 
-/* ── Leaflet dark overrides ──────────────────────────────────────────────── */
 .leaflet-control-layers {
-  background: #121f17 !important;
-  border: 1px solid #243d2c !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 0.5rem !important;
-  color: #d6ede0 !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
 }
-.leaflet-control-layers label { color: #a8d8bb !important; }
-.leaflet-control-layers-separator { border-color: #243d2c !important; }
+.leaflet-control-layers label { color: #475569 !important; }
+.leaflet-control-layers-separator { border-color: #e2e8f0 !important; }
 
 .leaflet-popup-content-wrapper {
-  background: #121f17 !important;
-  color: #d6ede0 !important;
-  border: 1px solid #243d2c !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 0.75rem !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
 }
-.leaflet-popup-tip { background: #121f17 !important; }
+.leaflet-popup-tip { background: #ffffff !important; }
 .leaflet-popup-tip-container { margin-top: -1px; }
 
 .leaflet-control-zoom a {
-  background: #121f17 !important;
-  color: #52b788 !important;
-  border-color: #243d2c !important;
+  background: #ffffff !important;
+  color: #0d9488 !important;
+  border-color: #e2e8f0 !important;
 }
-.leaflet-control-zoom a:hover { background: #1e3d2a !important; }
+.leaflet-control-zoom a:hover { background: #f0fdfa !important; color: #0f766e !important; }
 
 .leaflet-control-attribution {
-  background: rgba(13,26,18,0.85) !important;
-  color: #3f6650 !important;
+  background: rgba(255,255,255,0.85) !important;
+  color: #94a3b8 !important;
 }
-.leaflet-control-attribution a { color: #52b788 !important; }
+.leaflet-control-attribution a { color: #0d9488 !important; }
 
-.leaflet-bar { border-color: #243d2c !important; }
+.leaflet-bar { border-color: #e2e8f0 !important; box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important; }

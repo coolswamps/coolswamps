@@ -6,27 +6,27 @@ const navLinks = [
 const currentPath = Astro.url.pathname;
 ---
 
-<header style="background:rgba(13,26,18,0.97);border-bottom:1px solid #243d2c;"
-        class="sticky top-0 z-50 backdrop-blur-sm shadow-lg">
+<header style="background:rgba(255,255,255,0.97);border-bottom:1px solid #e2e8f0;"
+        class="sticky top-0 z-[1100] backdrop-blur-sm shadow-sm">
   <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
 
       <!-- Logo -->
       <a href="/" class="flex items-center gap-3 group" aria-label="CoolSwamps home">
         <div class="w-9 h-9 rounded-lg flex items-center justify-center shadow-sm transition-colors"
-             style="background:#1e4d35;border:1px solid #2d6a4f;">
+             style="background:#f0fdfa;border:1px solid #99f6e4;">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 2 C9 5 7 7 8 10 C6 9 4 11 6 13 C4 13 3 15 5 16
                      C4 17 4 19 6 19 L18 19 C20 19 20 17 19 16
                      C21 15 20 13 18 13 C20 11 18 9 16 10
                      C17 7 15 5 12 2Z"
-                  fill="#52b788" opacity="0.9"/>
-            <rect x="11" y="19" width="2" height="3" rx="1" fill="#52b788" opacity="0.5"/>
+                  fill="#0d9488" opacity="0.9"/>
+            <rect x="11" y="19" width="2" height="3" rx="1" fill="#0d9488" opacity="0.5"/>
           </svg>
         </div>
         <div class="flex flex-col leading-none">
-          <span class="font-bold text-lg tracking-tight" style="color:#d6ede0;">CoolSwamps</span>
-          <span class="text-[10px] font-medium uppercase tracking-widest" style="color:#3f6650;">
+          <span class="font-bold text-lg tracking-tight" style="color:#0f172a;">CoolSwamps</span>
+          <span class="text-[10px] font-medium uppercase tracking-widest" style="color:#94a3b8;">
             Wetland Database
           </span>
         </div>
@@ -58,7 +58,7 @@ const currentPath = Astro.url.pathname;
       <!-- Mobile menu button -->
       <button id="mobile-menu-btn"
               class="md:hidden p-2 rounded-lg transition-colors"
-              style="color:#6b9b7e;"
+              style="color:#64748b;"
               aria-expanded="false" aria-controls="mobile-menu" aria-label="Toggle navigation">
         <svg id="menu-icon-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M4 6h16M4 12h16M4 18h16"/>
@@ -71,7 +71,7 @@ const currentPath = Astro.url.pathname;
   </div>
 
   <!-- Mobile Navigation -->
-  <div id="mobile-menu" class="hidden md:hidden" style="border-top:1px solid #243d2c;">
+  <div id="mobile-menu" class="hidden md:hidden" style="border-top:1px solid #e2e8f0;background:#ffffff;">
     <nav class="max-w-screen-xl mx-auto px-4 py-3 flex flex-col gap-1">
       {navLinks.map(link => (
         <a href={link.href}
@@ -83,9 +83,9 @@ const currentPath = Astro.url.pathname;
 </header>
 
 <style>
-  .nav-link       { color: #6b9b7e; }
-  .nav-link:hover { color: #d6ede0; background: #121f17; }
-  .nav-link-active { color: #52b788; background: #0f2218; font-weight: 600; }
+  .nav-link       { color: #64748b; }
+  .nav-link:hover { color: #0f172a; background: #f8fafc; }
+  .nav-link-active { color: #0d9488; background: #f0fdfa; font-weight: 600; }
 </style>
 
 <script>

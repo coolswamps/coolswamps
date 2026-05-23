@@ -19,44 +19,40 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   description={`Interactive map and scientific database of ${totalCount} swamps, bogs, fens, and wetlands across the United States.`}
 >
   <!-- Stats bar -->
-  <div style="background:#0a1510;border-bottom:1px solid #1a3022;">
-    <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+  <div style="background:#ffffff;border-bottom:1px solid #e2e8f0;">
+    <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
       <div class="flex flex-wrap items-center gap-x-8 gap-y-1 text-sm">
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full" style="background:#52b788;"></span>
-          <span class="font-medium" style="color:#a8d8bb;">{totalCount}</span>
-          <span style="color:#3f6650;">wetlands catalogued</span>
+          <span class="w-2 h-2 rounded-full" style="background:#0d9488;"></span>
+          <span class="font-semibold" style="color:#0f172a;">{totalCount}</span>
+          <span style="color:#64748b;">wetlands catalogued</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full" style="background:#52b788;"></span>
-          <span class="font-medium" style="color:#a8d8bb;">{visitedCount}</span>
-          <span style="color:#3f6650;">visited</span>
+          <span class="w-2 h-2 rounded-full" style="background:#0d9488;"></span>
+          <span class="font-semibold" style="color:#0f172a;">{visitedCount}</span>
+          <span style="color:#64748b;">visited</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full" style="background:#d4a017;"></span>
-          <span class="font-medium" style="color:#a8d8bb;">{wishlistCount}</span>
-          <span style="color:#3f6650;">want to visit</span>
+          <span class="w-2 h-2 rounded-full" style="background:#ea580c;"></span>
+          <span class="font-semibold" style="color:#0f172a;">{wishlistCount}</span>
+          <span style="color:#64748b;">want to visit</span>
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full" style="background:#4895ef;"></span>
-          <span class="font-medium" style="color:#a8d8bb;">{stateCount}</span>
-          <span style="color:#3f6650;">states</span>
+          <span class="w-2 h-2 rounded-full" style="background:#0369a1;"></span>
+          <span class="font-semibold" style="color:#0f172a;">{stateCount}</span>
+          <span style="color:#64748b;">states</span>
         </span>
-        <a href="/submit" class="ml-auto text-xs transition-colors" style="color:#3f6650;"
-           onmouseover="this.style.color='#52b788'" onmouseout="this.style.color='#3f6650'">
-          + Submit a swamp
-        </a>
       </div>
     </div>
   </div>
 
   <!-- View toggle toolbar -->
-  <div class="sticky top-16 z-40 shadow-lg" style="background:#0d1a12;border-bottom:1px solid #1a3022;">
+  <div class="sticky top-16 z-[1060] shadow-sm" style="background:#ffffff;border-bottom:1px solid #e2e8f0;">
     <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-12 gap-4">
 
         <!-- View toggle -->
-        <div class="flex items-center rounded-lg p-1 gap-0.5" style="background:#0a1510;" role="tablist" aria-label="View switcher">
+        <div class="flex items-center rounded-lg p-1 gap-0.5" style="background:#f1f5f9;" role="tablist" aria-label="View switcher">
           <button
             id="btn-map"
             role="tab"
@@ -86,10 +82,10 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
           </button>
         </div>
 
-        <!-- Search (visible in both views) -->
+        <!-- Search -->
         <div class="flex-1 max-w-sm">
           <div class="relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color:#3f6650;"
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color:#94a3b8;"
                  width="15" height="15" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="11" cy="11" r="8"/>
@@ -118,14 +114,15 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
             <polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46"/>
           </svg>
           Filters
-          <span id="filter-count" class="hidden bg-swamp-600 text-white rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-bold">0</span>
+          <span id="filter-count" class="hidden rounded-full w-4 h-4 text-[10px] flex items-center justify-center font-bold"
+                style="background:#0d9488;color:#ffffff;">0</span>
         </button>
       </div>
     </div>
   </div>
 
   <!-- Filter panel (collapsible) -->
-  <div id="filter-panel" class="hidden" style="background:#0a1510;border-bottom:1px solid #1a3022;">
+  <div id="filter-panel" class="hidden" style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
     <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
 
@@ -196,15 +193,15 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   </div>
 </BaseLayout>
 
-<!-- Pass data to client-side JS securely via a script tag with type=application/json -->
 <script type="application/json" id="swamps-data" set:html={swampsJSON}></script>
 
 <style>
-  .view-tab  { color: #3f6650; }
+  .view-tab       { color: #64748b; }
+  .view-tab:hover { color: #0f172a; }
   .active-tab {
-    background: #1e3d2a;
-    color: #52b788;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    background: #ffffff;
+    color: #0d9488;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     font-weight: 600;
   }
 </style>
@@ -224,7 +221,6 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
     btnTable.setAttribute('aria-selected', String(!isMap));
     viewMap.classList.toggle('hidden', !isMap);
     viewTable.classList.toggle('hidden', isMap);
-    // Update URL param without reload
     const url = new URL(window.location.href);
     if (isMap) url.searchParams.delete('view');
     else url.searchParams.set('view', 'table');
@@ -234,7 +230,6 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   btnMap.addEventListener('click',   () => activateView('map'));
   btnTable.addEventListener('click', () => activateView('table'));
 
-  // Respect ?view=table in URL on load
   if (new URLSearchParams(window.location.search).get('view') === 'table') {
     activateView('table');
   }
@@ -252,7 +247,7 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   const rawData = document.getElementById('swamps-data')!.textContent!;
   const allSwamps: any[] = JSON.parse(rawData);
 
-  // ─── Populate filter dropdowns from data ────────────────────────────────────
+  // ─── Populate filter dropdowns ───────────────────────────────────────────────
   function populateSelect(id: string, values: string[]) {
     const sel = document.getElementById(id) as HTMLSelectElement;
     const unique = [...new Set(values)].sort();
@@ -298,9 +293,7 @@ const stateCount   = new Set(swamps.map(s => s.data.state)).size;
   function applyFilters() {
     const filtered = getFilteredSwamps();
     updateFilterCount();
-    // Map update handled by Map component listener
     window.dispatchEvent(new CustomEvent('swamps:filter', { detail: filtered }));
-    // Table update handled by table listener
     window.dispatchEvent(new CustomEvent('swamps:table-filter', { detail: filtered }));
   }
 

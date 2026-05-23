@@ -4,44 +4,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Scientific / wetland palette
+        // Neutral slate palette — maps cleanly to light theme text/bg classes
         swamp: {
-          50:  '#f0f7f4',
-          100: '#d9ede5',
-          200: '#b3dbcb',
-          300: '#7fc2a8',
-          400: '#4da484',
-          500: '#2d8a6a',
-          600: '#1e6e53',
-          700: '#185843',
-          800: '#144636',
-          900: '#0f3328', // deep forest
-          950: '#071a14',
+          50:  '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
         },
         teal: {
-          400: '#40916C',
-          500: '#2D6A4F',
-          600: '#1B4332',
-        },
-        slate: {
-          850: '#1a2332',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
         },
         data: {
-          blue: '#1d4ed8',
-          amber: '#b45309',
+          blue:  '#0369a1',
+          amber: '#ea580c',
         }
       },
       fontFamily: {
         sans: ['Inter', 'Source Sans Pro', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
-      typography: {
-        DEFAULT: {
-          css: {
-            maxWidth: '75ch',
-          }
-        }
-      }
     },
   },
   plugins: [],
