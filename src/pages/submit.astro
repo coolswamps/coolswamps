@@ -123,7 +123,9 @@ import {
           <div>
             <p class="form-label">Or click the map to pin the location</p>
             <div id="location-picker-map" style="height:300px" class="rounded-lg border border-swamp-200 overflow-hidden"></div>
-            <p class="form-hint">Click anywhere on the map to drop a pin — county and state fill automatically</p>
+            <p id="geo-status" class="form-hint mt-1" aria-live="polite" aria-atomic="true">
+              Click anywhere on the map — county and state fill automatically
+            </p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -162,7 +164,7 @@ import {
                 County <span class="text-red-500" aria-hidden="true">*</span>
               </label>
               <input type="text" id="county" name="county" required
-                     maxlength="100" class="form-input" placeholder="Auto-filled from map or address" />
+                     maxlength="100" class="form-input" placeholder="e.g. Charlton" />
             </div>
           </div>
 
@@ -473,37 +475,53 @@ const waypointIcon = L.divIcon({
 
 let pickerMarker: L.Marker | null = null;
 
-const latInput    = document.getElementById('lat')     as HTMLInputElement;
-const lngInput    = document.getElementById('lng')     as HTMLInputElement;
-const stateSelect = document.getElementById('state')   as HTMLSelectElement;
-const countyInput = document.getElementById('county')  as HTMLInputElement;
+const latInput    = document.getElementById('lat')      as HTMLInputElement;
+const lngInput    = document.getElementById('lng')      as HTMLInputElement;
+const stateSelect = document.getElementById('state')    as HTMLSelectElement;
+const countyInput = document.getElementById('county')   as HTMLInputElement;
+const geoStatus   = document.getElementById('geo-status')!;
 
 // ─── Reverse geocode → auto-fill county & state ───────────────────────────────
 async function reverseGeocode(lat: number, lng: number) {
+  geoStatus.textContent = '⟳ Detecting location…';
+
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
       { headers: { 'Accept-Language': 'en-US,en' } }
     );
-    if (!res.ok) return;
+    if (!res.ok) {
+      geoStatus.textContent = 'Could not detect location — fill county and state manually.';
+      return;
+    }
     const data = await res.json();
-    applyAddress(data.address ?? {});
-  } catch { /* silent — user can fill manually */ }
+    const filled = applyAddress(data.address ?? {});
+    geoStatus.textContent = filled
+      ? '✓ County and state filled — you can edit them if needed.'
+      : 'Location pinned — county and state not found, please fill manually.';
+  } catch {
+    geoStatus.textContent = 'Could not detect location — fill county and state manually.';
+  }
 }
 
-function applyAddress(addr: Record<string, string>) {
-  // County: strip trailing " County" if present
+// Returns true if at least county or state was populated.
+function applyAddress(addr: Record<string, string>): boolean {
+  let filled = false;
+
+  // County: strip trailing " County" if present (Nominatim includes it)
   const rawCounty = addr.county ?? addr.municipality ?? addr.city_district ?? '';
   const county    = rawCounty.replace(/\s+county$/i, '').trim();
-  if (county) countyInput.value = county;
+  if (county) { countyInput.value = county; filled = true; }
 
-  // State: match against the <select> options (Nominatim returns full name)
+  // State: match Nominatim's full state name against the <select> options
   if (addr.state) {
-    const opt = Array.from(stateSelect.options).find(o =>
-      o.value.toLowerCase() === addr.state.toLowerCase()
+    const opt = Array.from(stateSelect.options).find(
+      o => o.value.toLowerCase() === addr.state.toLowerCase()
     );
-    if (opt) stateSelect.value = opt.value;
+    if (opt) { stateSelect.value = opt.value; filled = true; }
   }
+
+  return filled;
 }
 
 // ─── Place a marker and populate coordinate fields ────────────────────────────
