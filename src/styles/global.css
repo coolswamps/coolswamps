@@ -178,6 +178,14 @@
   .text-balance { text-wrap: balance; }
 }
 
+/* ── Leaflet z-index containment ─────────────────────────────────────────── */
+/* Keep map controls below the sticky header (z-50 = z-index 50) so they     */
+/* don't bleed over it when the page scrolls.                                 */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 45 !important;
+}
+
 /* ── Leaflet dark overrides ──────────────────────────────────────────────── */
 .leaflet-control-layers {
   background: #121f17 !important;
