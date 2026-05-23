@@ -57,14 +57,16 @@ const overlayLayers: Record<string, L.Layer> = {};
 // USFWS National Wetlands Inventory — dynamic ArcGIS MapServer exposed via WMS.
 // The Wetlands service has no tile cache (singleFusedMapCache: false), so it must
 // be consumed through the WMS extension rather than as an ArcGIS REST tile layer.
+// NWI tiles are proxied through /api/nwi-proxy to avoid the FWS server's
+// CORP/referrer policy that blocks browser cross-origin image requests.
 overlayLayers['🌿 Wetlands (NWI)'] = L.tileLayer.wms(
-  'https://fwspublicservices.wim.usgs.gov/wetlandsmapservice/services/Wetlands/MapServer/WMSServer',
+  '/api/nwi-proxy',
   {
     layers: '0',
-    styles: 'default',   // server rejects empty string — must be explicit
+    styles: 'default',
     format: 'image/png',
     transparent: true,
-    version: '1.1.1',    // 1.3.0 rejected by this service; 1.1.1 confirmed working
+    version: '1.1.1',
     opacity: 0.6,
     attribution: '<a href="https://www.fws.gov/program/national-wetlands-inventory">USFWS NWI</a>',
   }
@@ -430,19 +432,21 @@ map.on('click', async (e: L.LeafletMouseEvent) => {
       const point  = map.latLngToContainerPoint(e.latlng);
 
       // WMS 1.1.1 GetFeatureInfo — BBOX uses lng,lat order with SRS=EPSG:4326
+      // mapunitpolyextended returns muname, mukey, musym, and other descriptive fields.
+      // mapunitpoly (basic) only returns identifiers — no human-readable name.
       const params = new URLSearchParams({
         SERVICE:       'WMS',
         VERSION:       '1.1.1',
         REQUEST:       'GetFeatureInfo',
         LAYERS:        'MapunitPoly',
-        QUERY_LAYERS:  'MapunitPoly',
+        QUERY_LAYERS:  'mapunitpolyextended',
         SRS:           'EPSG:4326',
         BBOX:          `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`,
         WIDTH:         String(size.x),
         HEIGHT:        String(size.y),
         X:             String(Math.round(point.x)),
         Y:             String(Math.round(point.y)),
-        INFO_FORMAT:   'text/plain',   // server only supports text/plain, text/html, and GML — not JSON
+        INFO_FORMAT:   'text/plain',
         FEATURE_COUNT: '3',
       });
 
@@ -453,8 +457,8 @@ map.on('click', async (e: L.LeafletMouseEvent) => {
       // Format: repeated blocks of "Feature N:\n  key = 'value'\n  ..."
       const featureBlocks = text.split(/Feature \d+:/g).slice(1);
 
-      if (featureBlocks.length === 0 || text.trim() === '' || !text.includes('Feature')) {
-        popup.setContent(errorPopupHtml('🪨 Soil Types', 'No soil map unit found at this location.'));
+      if (featureBlocks.length === 0 || !text.includes('Feature')) {
+        popup.setContent(errorPopupHtml('🪨 Soil Types', 'No soil map unit found at this location. Zoom in to level 12+ for full coverage.'));
         return;
       }
 
@@ -464,25 +468,29 @@ map.on('click', async (e: L.LeafletMouseEvent) => {
           const m = line.match(/^\s+(\w+)\s*=\s*'(.*)'\s*$/);
           if (m) attrs[m[1].toLowerCase()] = m[2];
         }
-        const name   = escapeHtml(attrs['muname'] ?? attrs['mapunitname'] ?? 'Unknown map unit');
+        const name   = escapeHtml(attrs['muname'] ?? attrs['mapunitname'] ?? '');
         const symbol = escapeHtml(attrs['musym']  ?? '');
         const area   = escapeHtml(attrs['areasymbol'] ?? '');
+        const mukey  = escapeHtml(attrs['mukey'] ?? '');
         return `<div style="padding:5px 0;border-bottom:1px solid #f1f5f9;">
-          <span style="font-weight:600;font-size:12px;color:#0f172a">${symbol ? `[${symbol}] ` : ''}${name}</span>
-          ${area ? `<br><span style="font-size:11px;color:#64748b">Survey area: ${area}</span>` : ''}
+          ${symbol ? `<span style="font-weight:700;font-size:12px;color:#0d9488">${symbol}</span>` : ''}
+          ${name ? `<span style="font-size:12px;color:#0f172a;margin-left:4px">${name}</span>` : ''}
+          ${area  ? `<br><span style="font-size:11px;color:#64748b">Survey area: ${area}</span>` : ''}
+          ${mukey ? `<br><span style="font-size:11px;color:#94a3b8">Map unit: ${mukey}</span>` : ''}
         </div>`;
       }).join('');
 
-      const wsUrl = `https://websoilsurvey.nrcs.usda.gov/app/WebSoilSurvey.aspx?lat=${lat.toFixed(5)}&lon=${lng.toFixed(5)}&zoom=14`;
+      // SoilWeb (UC Davis) supports direct lat/lon URL navigation
+      const soilWebUrl = `https://casoilresource.lawr.ucdavis.edu/gmap/?loc=${lat.toFixed(5)},${lng.toFixed(5)}`;
 
       popup.setContent(`
         <div style="font-family:Inter,sans-serif;min-width:220px;max-width:300px;background:#fff;color:#0f172a">
-          <p style="font-weight:700;font-size:13px;margin:0 0 6px">🪨 Soil Types (USDA)</p>
+          <p style="font-weight:700;font-size:13px;margin:0 0 6px">🪨 Soil Types (USDA SSURGO)</p>
           ${rows}
           <div style="border-top:1px solid #f1f5f9;margin-top:6px;padding-top:6px;font-size:11px">
-            <a href="${wsUrl}" target="_blank" rel="noopener noreferrer"
+            <a href="${soilWebUrl}" target="_blank" rel="noopener noreferrer"
                style="color:#0d9488;text-decoration:none;font-weight:500">
-              Open in Web Soil Survey ↗
+              View soil detail at this location ↗
             </a>
           </div>
         </div>`);

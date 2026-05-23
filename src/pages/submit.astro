@@ -101,6 +101,52 @@ import {
         </div>
         <div class="card-body space-y-5">
 
+          <!-- Address search -->
+          <div>
+            <label for="address-search" class="form-label">Search by Address or Place Name</label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="address-search"
+                class="form-input flex-1"
+                placeholder="e.g. Great Dismal Swamp, Virginia"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button type="button" id="address-search-btn" class="btn-secondary px-4 shrink-0">Find</button>
+            </div>
+            <p id="address-error" class="form-error hidden mt-1"></p>
+            <p class="form-hint">Enter an address, place name, or area — coordinates, county, and state fill automatically</p>
+          </div>
+
+          <!-- Map picker -->
+          <div>
+            <p class="form-label">Or click the map to pin the location</p>
+            <div id="location-picker-map" style="height:300px" class="rounded-lg border border-swamp-200 overflow-hidden"></div>
+            <p class="form-hint">Click anywhere on the map to drop a pin — county and state fill automatically</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="lat" class="form-label">
+                Latitude <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <input type="number" id="lat" name="lat" required
+                     min="-90" max="90" step="any"
+                     class="form-input font-mono" placeholder="e.g. 36.5771" />
+              <p class="form-hint">Decimal degrees</p>
+            </div>
+            <div>
+              <label for="lng" class="form-label">
+                Longitude <span class="text-red-500" aria-hidden="true">*</span>
+              </label>
+              <input type="number" id="lng" name="lng" required
+                     min="-180" max="180" step="any"
+                     class="form-input font-mono" placeholder="e.g. -76.4496" />
+              <p class="form-hint">Decimal degrees (negative for West)</p>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label for="state" class="form-label">
@@ -116,35 +162,8 @@ import {
                 County <span class="text-red-500" aria-hidden="true">*</span>
               </label>
               <input type="text" id="county" name="county" required
-                     maxlength="100" class="form-input" placeholder="e.g. Charlton" />
+                     maxlength="100" class="form-input" placeholder="Auto-filled from map or address" />
             </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label for="lat" class="form-label">
-                Latitude <span class="text-red-500" aria-hidden="true">*</span>
-              </label>
-              <input type="number" id="lat" name="lat" required
-                     min="-90" max="90" step="any"
-                     class="form-input font-mono" placeholder="e.g. 36.5771" />
-              <p class="form-hint">Decimal degrees (e.g. 36.5771)</p>
-            </div>
-            <div>
-              <label for="lng" class="form-label">
-                Longitude <span class="text-red-500" aria-hidden="true">*</span>
-              </label>
-              <input type="number" id="lng" name="lng" required
-                     min="-180" max="180" step="any"
-                     class="form-input font-mono" placeholder="e.g. -76.4496" />
-              <p class="form-hint">Decimal degrees (negative for West)</p>
-            </div>
-          </div>
-
-          <!-- Map picker -->
-          <div>
-            <p class="form-label">Or click the map to set coordinates</p>
-            <div id="location-picker-map" style="height:280px" class="rounded-lg border border-swamp-200 overflow-hidden"></div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -415,61 +434,139 @@ import {
   </div>
 </BaseLayout>
 
-<!-- Leaflet for location picker -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN2GQnc=" crossorigin="anonymous" defer></script>
-
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+// Leaflet is bundled via npm — no CDN race condition, no SRI issues.
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
-  // ─── CSRF token (random nonce, validated server-side) ──────────────────
-  const csrfToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-    .map(b => b.toString(16).padStart(2, '0')).join('');
-  (document.getElementById('csrf-token') as HTMLInputElement).value = csrfToken;
-  sessionStorage.setItem('csrf_token', csrfToken);
+// ─── CSRF token ───────────────────────────────────────────────────────────────
+const csrfToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+  .map(b => b.toString(16).padStart(2, '0')).join('');
+(document.getElementById('csrf-token') as HTMLInputElement).value = csrfToken;
+sessionStorage.setItem('csrf_token', csrfToken);
 
-  // ─── Char counter ──────────────────────────────────────────────────────
-  const desc = document.getElementById('description') as HTMLTextAreaElement;
-  const counter = document.getElementById('desc-count')!;
-  desc.addEventListener('input', () => { counter.textContent = String(desc.value.length); });
+// ─── Char counter ─────────────────────────────────────────────────────────────
+const desc    = document.getElementById('description') as HTMLTextAreaElement;
+const counter = document.getElementById('desc-count')!;
+desc.addEventListener('input', () => { counter.textContent = String(desc.value.length); });
 
-  // ─── Location picker map ───────────────────────────────────────────────
-  const L = (window as any).L;
-  if (L) {
-    const pickerMap = L.map('location-picker-map', { center: [38, -96], zoom: 4 });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(pickerMap);
+// ─── Location picker map ──────────────────────────────────────────────────────
+const pickerMap = L.map('location-picker-map', { center: [38, -96], zoom: 4 });
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(pickerMap);
 
-    let pickerMarker: any = null;
+let pickerMarker: L.Marker | null = null;
 
-    const latInput = document.getElementById('lat') as HTMLInputElement;
-    const lngInput = document.getElementById('lng') as HTMLInputElement;
+const latInput    = document.getElementById('lat')     as HTMLInputElement;
+const lngInput    = document.getElementById('lng')     as HTMLInputElement;
+const stateSelect = document.getElementById('state')   as HTMLSelectElement;
+const countyInput = document.getElementById('county')  as HTMLInputElement;
 
-    pickerMap.on('click', (e: any) => {
-      const { lat, lng } = e.latlng;
-      latInput.value = lat.toFixed(6);
-      lngInput.value = lng.toFixed(6);
-      if (pickerMarker) pickerMarker.setLatLng(e.latlng);
-      else pickerMarker = L.marker(e.latlng).addTo(pickerMap);
-    });
+// ─── Reverse geocode → auto-fill county & state ───────────────────────────────
+async function reverseGeocode(lat: number, lng: number) {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: { 'Accept-Language': 'en-US,en' } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    applyAddress(data.address ?? {});
+  } catch { /* silent — user can fill manually */ }
+}
 
-    // Sync marker if user types coordinates
-    function syncMarkerFromInputs() {
-      const lat = parseFloat(latInput.value);
-      const lng = parseFloat(lngInput.value);
-      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        if (pickerMarker) pickerMarker.setLatLng([lat, lng]);
-        else pickerMarker = L.marker([lat, lng]).addTo(pickerMap);
-        pickerMap.setView([lat, lng], 10);
-      }
-    }
-    latInput.addEventListener('change', syncMarkerFromInputs);
-    lngInput.addEventListener('change', syncMarkerFromInputs);
+function applyAddress(addr: Record<string, string>) {
+  // County: strip trailing " County" if present
+  const rawCounty = addr.county ?? addr.municipality ?? addr.city_district ?? '';
+  const county    = rawCounty.replace(/\s+county$/i, '').trim();
+  if (county) countyInput.value = county;
+
+  // State: match against the <select> options (Nominatim returns full name)
+  if (addr.state) {
+    const opt = Array.from(stateSelect.options).find(o =>
+      o.value.toLowerCase() === addr.state.toLowerCase()
+    );
+    if (opt) stateSelect.value = opt.value;
   }
+}
+
+// ─── Place a marker and populate coordinate fields ────────────────────────────
+function setCoords(lat: number, lng: number, zoom?: number) {
+  latInput.value = lat.toFixed(6);
+  lngInput.value = lng.toFixed(6);
+  const ll: [number, number] = [lat, lng];
+  if (pickerMarker) pickerMarker.setLatLng(ll);
+  else pickerMarker = L.marker(ll).addTo(pickerMap);
+  if (zoom !== undefined) pickerMap.setView(ll, zoom);
+  else pickerMap.panTo(ll);
+  reverseGeocode(lat, lng);
+}
+
+// Click on map → drop pin
+pickerMap.on('click', (e: L.LeafletMouseEvent) => {
+  setCoords(e.latlng.lat, e.latlng.lng);
+});
+
+// Manual coordinate entry → move pin
+function syncMarkerFromInputs() {
+  const lat = parseFloat(latInput.value);
+  const lng = parseFloat(lngInput.value);
+  if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+    setCoords(lat, lng, 10);
+  }
+}
+latInput.addEventListener('change', syncMarkerFromInputs);
+lngInput.addEventListener('change', syncMarkerFromInputs);
+
+// ─── Address / place-name search (Nominatim) ─────────────────────────────────
+const addressInput = document.getElementById('address-search') as HTMLInputElement;
+const addressBtn   = document.getElementById('address-search-btn') as HTMLButtonElement;
+const addressError = document.getElementById('address-error')!;
+
+async function searchAddress() {
+  const q = addressInput.value.trim();
+  if (!q) return;
+
+  addressBtn.disabled  = true;
+  addressBtn.textContent = '…';
+  addressError.classList.add('hidden');
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&countrycodes=us&limit=1&addressdetails=1`,
+      { headers: { 'Accept-Language': 'en-US,en' } }
+    );
+    const results: any[] = await res.json();
+
+    if (!results.length) {
+      addressError.textContent = 'No results found. Try a more specific address or place name.';
+      addressError.classList.remove('hidden');
+      return;
+    }
+
+    const r    = results[0];
+    const lat  = parseFloat(r.lat);
+    const lng  = parseFloat(r.lon);
+    const addr = r.address ?? {};
+
+    setCoords(lat, lng, 12);
+    applyAddress(addr);
+
+  } catch {
+    addressError.textContent = 'Search failed. Please enter coordinates manually.';
+    addressError.classList.remove('hidden');
+  } finally {
+    addressBtn.disabled   = false;
+    addressBtn.textContent = 'Find';
+  }
+}
+
+addressBtn.addEventListener('click', searchAddress);
+addressInput.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Enter') { e.preventDefault(); searchAddress(); }
+});
 
   // ─── Photo upload & validation ─────────────────────────────────────────
   const dropZone    = document.getElementById('drop-zone')!;
@@ -632,5 +729,4 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     }
   });
-});
 </script>
