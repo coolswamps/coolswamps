@@ -1,7 +1,10 @@
 {
   "name": "Okefenokee Swamp",
-  "status": "visited",
-  "coordinates": { "lat": 30.7274, "lng": -82.3229 },
+  "status": "want-to-visit",
+  "coordinates": {
+    "lat": 30.7274,
+    "lng": -82.3229
+  },
   "state": "Georgia",
   "county": "Charlton",
   "country": "USA",
@@ -11,20 +14,66 @@
   "area_acres": 438000,
   "elevation_ft": 100,
   "tags": {
-    "terrain": ["bog", "peat-bog", "cypress-dome", "freshwater-marsh", "wet-prairie"],
-    "habitat": ["forested-wetland", "emergent-wetland", "aquatic-bed"],
-    "soil": ["histosol", "peat", "muck"],
-    "water_type": ["blackwater", "standing-water", "perennial"],
-    "topography": ["flat", "depression"],
-    "activities": ["kayaking", "canoeing", "birding", "photography", "wildlife-watching", "fishing", "camping"],
-    "vegetation": ["bald-cypress", "swamp-tupelo", "longleaf-pine", "titi", "Virginia-willow", "pitcher-plants", "sundews", "bladderworts"],
-    "custom": ["ramsar-site", "national-wildlife-refuge", "alligator", "carnivorous-plants"]
+    "terrain": [
+      "bog",
+      "peat-bog",
+      "cypress-dome",
+      "freshwater-marsh",
+      "wet-prairie"
+    ],
+    "habitat": [
+      "forested-wetland",
+      "emergent-wetland",
+      "aquatic-bed"
+    ],
+    "soil": [
+      "histosol",
+      "peat",
+      "muck"
+    ],
+    "water_type": [
+      "blackwater",
+      "standing-water",
+      "perennial"
+    ],
+    "topography": [
+      "flat",
+      "depression"
+    ],
+    "activities": [
+      "kayaking",
+      "canoeing",
+      "birding",
+      "wildlife-watching",
+      "photography",
+      "fishing",
+      "camping"
+    ],
+    "vegetation": [
+      "bald-cypress",
+      "swamp-tupelo",
+      "longleaf-pine",
+      "titi",
+      "Virginia-willow",
+      "pitcher-plants",
+      "sundews",
+      "bladderworts"
+    ],
+    "custom": [
+      "ramsar-site",
+      "national-wildlife-refuge",
+      "alligator",
+      "carnivorous-plants"
+    ]
   },
   "difficulty": "moderate",
-  "best_season": ["spring", "fall", "winter"],
+  "best_season": [
+    "spring",
+    "fall",
+    "winter"
+  ],
   "photos": [],
-  "ratings": { "novelty": 5, "accessibility": 3, "habitat": 5 },
   "submitted_date": "2026-05-22",
-  "last_updated": "2026-05-22",
-  "verified": true
+  "last_updated": "2026-05-24",
+  "verified": false
 }
