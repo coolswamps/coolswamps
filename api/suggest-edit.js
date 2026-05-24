@@ -38,6 +38,11 @@ const rateLimitMap = new Map();
 // Max text lengths
 const MAX_TEXT_LEN = 5000;
 
+// Photo limits (same policy as submit-swamp.js)
+const MAX_PHOTOS      = 10;
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB per file (client compresses before upload)
+const ALLOWED_MIME    = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
 // Valid enum values (mirror of content/config.ts)
 const VALID_STATES = new Set([
   'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
@@ -73,6 +78,18 @@ function sanitizeText(val, maxLen = 200) {
 function filterEnum(values, validSet) {
   if (!Array.isArray(values)) return [];
   return values.filter(v => typeof v === 'string' && validSet.has(v));
+}
+
+/** Check image magic bytes to confirm the file content matches its MIME type */
+function isValidImageBuffer(buf, mimeType) {
+  const bytes = new Uint8Array(buf);
+  if (mimeType === 'image/jpeg') return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+  if (mimeType === 'image/png')  return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+  if (mimeType === 'image/webp') {
+    const header = new TextDecoder().decode(bytes.slice(0, 12));
+    return header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP';
+  }
+  return false;
 }
 
 /** Parse an optional integer rating 1-5 */
@@ -164,16 +181,20 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Too many suggestions. Please wait before trying again.' });
   }
 
-  // ── 3. Parse multipart form data ───────────────────────────────────────
-  // The edit form posts FormData (no file inputs) — formidable handles multipart.
-  let fields;
+  // ── 3. Parse multipart form data (fields + optional photo files) ──────
+  let fields, photoFiles;
   try {
     const { default: formidable } = await import('formidable');
-    const form = formidable({ maxFiles: 0, maxFieldsSize: 100 * 1024 });
-    [fields] = await new Promise((resolve, reject) => {
-      form.parse(req, (err, f) => {
+    const form = formidable({
+      maxFiles:     MAX_PHOTOS,
+      maxFileSize:  MAX_PHOTO_BYTES,
+      filter:       ({ mimetype }) => ALLOWED_MIME.has(mimetype ?? ''),
+      keepExtensions: false,
+    });
+    [fields, photoFiles] = await new Promise((resolve, reject) => {
+      form.parse(req, (err, f, files) => {
         if (err) reject(err);
-        else resolve([f]);
+        else resolve([f, files]);
       });
     });
   } catch (err) {
@@ -273,7 +294,36 @@ export default async function handler(req, res) {
     ? customRaw.split(',').map(v => sanitizeText(v, 50)).filter(Boolean).slice(0, 20)
     : [];
 
-  // ── 6. Build updated JSON ──────────────────────────────────────────────
+  // ── 6a. Process uploaded photos ───────────────────────────────────────
+  const { default: sharp }   = await import('sharp');
+  const { readFile }         = await import('fs/promises');
+  const { randomBytes }      = await import('crypto');
+
+  const allPhotoFiles   = Object.values(photoFiles ?? {}).flat();
+  const processedPhotos = [];
+
+  for (const file of allPhotoFiles.slice(0, MAX_PHOTOS)) {
+    const buf = await readFile(file.filepath);
+    if (!isValidImageBuffer(buf, file.mimetype)) {
+      console.warn('Invalid image magic bytes, skipping');
+      continue;
+    }
+    let cleanBuf;
+    try {
+      cleanBuf = await sharp(buf)
+        .rotate()
+        .jpeg({ quality: 85, mozjpeg: true })
+        .toBuffer();
+    } catch (err) {
+      console.error('Sharp processing error:', err);
+      continue;
+    }
+    if (cleanBuf.length > MAX_PHOTO_BYTES) continue;
+    const filename = `${randomBytes(8).toString('hex')}.jpg`;
+    processedPhotos.push({ filename, base64: cleanBuf.toString('base64') });
+  }
+
+  // ── 6b. Build updated JSON ─────────────────────────────────────────────
   // Immutable fields preserved from the original:
   //   submitted_date — original submission date never changes
   //   verified       — only admins toggle verification; user edits reset to false
@@ -303,8 +353,11 @@ export default async function handler(req, res) {
           ...(ratingHabitat       !== undefined ? { habitat:       ratingHabitat }       : {}),
         }}
       : {}),
-    // Preserve immutable original fields
-    photos: currentContent.photos ?? [],
+    // Preserve immutable original fields; append any newly uploaded photos
+    photos: [
+      ...(currentContent.photos ?? []),
+      ...processedPhotos.map(p => ({ filename: p.filename })),
+    ],
     submitted_date: currentContent.submitted_date ?? today,
     last_updated: today,
     verified: false,  // Edits reset verified — admin must re-verify
@@ -380,27 +433,44 @@ export default async function handler(req, res) {
       }),
     });
 
-    // Create a tree that replaces only the one changed file
+    // Create blobs for any new photos and build tree entries
+    const treeEntries = [{
+      path: `src/content/swamps/${slug}.json`,
+      mode: '100644',
+      type: 'blob',
+      sha:  jsonBlob.sha,
+    }];
+
+    for (const photo of processedPhotos) {
+      const photoBlob = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: photo.base64, encoding: 'base64' }),
+      });
+      treeEntries.push({
+        path: `public/photos/${photo.filename}`,
+        mode: '100644',
+        type: 'blob',
+        sha:  photoBlob.sha,
+      });
+    }
+
+    // Create a tree with the JSON update and any new photos
     const newTree = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        base_tree: baseTreeSha,
-        tree: [{
-          path: `src/content/swamps/${slug}.json`,
-          mode: '100644',
-          type: 'blob',
-          sha:  jsonBlob.sha,
-        }],
-      }),
+      body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
     });
 
     // Create a single commit
+    const photoNote = processedPhotos.length > 0
+      ? ` + ${processedPhotos.length} photo${processedPhotos.length > 1 ? 's' : ''}`
+      : '';
     const newCommit = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/commits`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: `edit: update swamp — ${name}`,
+        message: `edit: update swamp — ${name}${photoNote}`,
         tree:    newTree.sha,
         parents: [baseCommitSha],
       }),
@@ -447,6 +517,9 @@ export default async function handler(req, res) {
       `- [ ] Description and notes are accurate and appropriate`,
       `- [ ] No personal information in any field`,
       `- [ ] If novelty/accessibility/habitat ratings changed — the new values are defensible`,
+      processedPhotos.length > 0
+        ? `- [ ] Photos show the actual location (${processedPhotos.length} new photo${processedPhotos.length > 1 ? 's' : ''} added, EXIF stripped)`
+        : `- [ ] No new photos submitted`,
       diffRows.length === 0
         ? `- [ ] Confirm this is not a no-op submission`
         : `- [ ] All ${diffRows.length} changed field(s) reviewed`,
