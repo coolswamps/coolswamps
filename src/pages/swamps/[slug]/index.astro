@@ -248,63 +248,47 @@ const jsonLd = JSON.stringify({
         <!-- Mini map for this swamp -->
         {hasCoords && (
           <div class="card">
-            <div class="card-header flex items-center justify-between gap-3">
+            <div class="card-header">
               <h2 class="text-base font-semibold text-swamp-900">Location</h2>
-
-              <!-- Open in… dropdown -->
-              <div class="relative shrink-0" id="map-open-wrap">
-                <button id="map-open-btn" type="button"
-                        class="inline-flex items-center gap-1 text-xs font-medium text-swamp-600
-                               hover:text-swamp-900 border border-swamp-200 rounded-md px-2.5 py-1
-                               hover:bg-swamp-50 transition-colors"
-                        aria-haspopup="true" aria-expanded="false">
-                  Open in
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                <div id="map-open-menu"
-                     class="hidden absolute right-0 top-full mt-1 w-48 bg-white border border-swamp-200
-                            rounded-lg shadow-lg z-20 py-1 text-sm"
-                     role="menu">
-                  <a href={`https://www.google.com/maps?q=${swamp.coordinates.lat},${swamp.coordinates.lng}`}
-                     target="_blank" rel="noopener noreferrer"
-                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
-                     role="menuitem">
-                    Google Maps ↗
-                  </a>
-                  <a href={`https://www.openstreetmap.org/?mlat=${swamp.coordinates.lat}&mlon=${swamp.coordinates.lng}&zoom=14`}
-                     target="_blank" rel="noopener noreferrer"
-                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
-                     role="menuitem">
-                    OpenStreetMap ↗
-                  </a>
-                  <a href={`https://caltopo.com/map.html#ll=${swamp.coordinates.lat},${swamp.coordinates.lng}&z=14&b=mbt&a=sf`}
-                     target="_blank" rel="noopener noreferrer"
-                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
-                     role="menuitem">
-                    CalTopo ↗
-                  </a>
-                  <a href={`https://www.inaturalist.org/observations?lat=${swamp.coordinates.lat}&lng=${swamp.coordinates.lng}&radius=5&view=map`}
-                     target="_blank" rel="noopener noreferrer"
-                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
-                     role="menuitem">
-                    iNaturalist nearby ↗
-                  </a>
-                </div>
-              </div>
             </div>
 
-            <!-- Map container — coordinates passed via data attributes (define:vars
-                 cannot be combined with ES module imports in Astro) -->
-            <div class="card-body p-0 overflow-hidden rounded-b-xl">
+            <!-- Map — no overflow-hidden here so the map tiles render correctly -->
+            <div class="card-body p-0 overflow-hidden">
               <div id="swamp-mini-map"
                    data-lat={swamp.coordinates.lat}
                    data-lng={swamp.coordinates.lng}
                    data-name={swamp.name}
                    data-status={swamp.status}
                    style="height:280px;width:100%"></div>
+            </div>
+
+            <!-- Open in links — sit outside the overflow-hidden map container so
+                 they are never clipped. A row of plain links is simpler and more
+                 reliable than an absolute dropdown fighting overflow boundaries. -->
+            <div class="card-body border-t border-swamp-100 py-2.5">
+              <p class="text-xs text-swamp-500 font-medium mb-2">Open location in</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-1.5">
+                <a href={`https://www.google.com/maps?q=${swamp.coordinates.lat},${swamp.coordinates.lng}`}
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-xs text-swamp-600 hover:text-swamp-900 hover:underline transition-colors">
+                  Google Maps ↗
+                </a>
+                <a href={`https://www.openstreetmap.org/?mlat=${swamp.coordinates.lat}&mlon=${swamp.coordinates.lng}&zoom=14`}
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-xs text-swamp-600 hover:text-swamp-900 hover:underline transition-colors">
+                  OpenStreetMap ↗
+                </a>
+                <a href={`https://caltopo.com/map.html#ll=${swamp.coordinates.lat},${swamp.coordinates.lng}&z=14&b=mbt&a=sf`}
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-xs text-swamp-600 hover:text-swamp-900 hover:underline transition-colors">
+                  CalTopo ↗
+                </a>
+                <a href={`https://www.inaturalist.org/observations?lat=${swamp.coordinates.lat}&lng=${swamp.coordinates.lng}&radius=5&view=map`}
+                   target="_blank" rel="noopener noreferrer"
+                   class="text-xs text-swamp-600 hover:text-swamp-900 hover:underline transition-colors">
+                  iNaturalist nearby ↗
+                </a>
+              </div>
             </div>
           </div>
         )}
@@ -654,20 +638,4 @@ if (mapEl) {
   L.marker([lat, lng], { icon, title: name }).addTo(miniMap);
 }
 
-// ── "Open in" dropdown ────────────────────────────────────────────────────────
-const openBtn  = document.getElementById('map-open-btn');
-const openMenu = document.getElementById('map-open-menu');
-if (openBtn && openMenu) {
-  openBtn.addEventListener('click', (e: MouseEvent) => {
-    e.stopPropagation();
-    const isOpen = !openMenu.classList.contains('hidden');
-    openMenu.classList.toggle('hidden');
-    openBtn.setAttribute('aria-expanded', String(!isOpen));
-  });
-  // Close when clicking anywhere outside
-  document.addEventListener('click', () => {
-    openMenu.classList.add('hidden');
-    openBtn.setAttribute('aria-expanded', 'false');
-  });
-}
 </script>
