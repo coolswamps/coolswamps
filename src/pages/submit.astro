@@ -865,10 +865,15 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
 
     submitBtn.textContent = 'Submitting…';
 
-    // Build FormData
+    // Build FormData — strip the raw file input first.
+    // new FormData(form) captures the <input type="file" name="photos"> in its
+    // current state, which still holds the original uncompressed files when
+    // photos were chosen via the file picker. Deleting 'photos' before appending
+    // the compressed versions ensures only compressed files reach the server.
     const fd = new FormData(form);
+    fd.delete('photos');
 
-    // Append compressed files (replaces raw files — never reach the server)
+    // Append compressed files (the originals never leave the browser)
     compressed.forEach((file, i) => fd.append(`photo_${i}`, file, file.name));
     fd.set('photo_count', String(compressed.length));
 
@@ -888,7 +893,7 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         const data = await res.json().catch(() => ({}));
-        formErrorDetail.textContent = data.error ?? 'An unexpected error occurred. Please try again.';
+        formErrorDetail.textContent = data.error ?? `Submission failed (HTTP ${res.status}). Please try again.`;
         formErrorMsg.classList.remove('hidden');
         formSuccess.classList.add('hidden');
       }
