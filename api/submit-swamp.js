@@ -290,12 +290,15 @@ export default async function handler(req, res) {
       continue;
     }
 
-    // Strip ALL metadata using sharp (rotate to fix orientation, then strip)
+    // Strip ALL metadata using sharp (rotate to fix orientation, then strip).
+    // Sharp does NOT include metadata in output by default — calling .withMetadata()
+    // would copy EXIF from the input, which is the opposite of what we want.
+    // .rotate() uses the EXIF orientation tag to auto-correct rotation, then the
+    // tag (and all other EXIF) is dropped because we do not call .withMetadata().
     let cleanBuf;
     try {
       cleanBuf = await sharp(buf)
-        .rotate()          // auto-rotate from EXIF orientation, then strip EXIF
-        .withMetadata({})  // passing empty object strips all metadata
+        .rotate()          // auto-rotate from EXIF orientation flag
         .jpeg({ quality: 85, mozjpeg: true })
         .toBuffer();
     } catch (err) {

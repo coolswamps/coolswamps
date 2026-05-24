@@ -3,6 +3,21 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "astro",
+  "functions": {
+    "api/submit-swamp.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/suggest-edit.js": {
+      "maxDuration": 30
+    },
+    "api/geocode.js": {
+      "maxDuration": 10
+    },
+    "api/nwi-proxy.js": {
+      "maxDuration": 10
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

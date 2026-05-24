@@ -431,7 +431,7 @@ import {
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               <p class="text-sm text-swamp-600 font-medium">Drop photos here or click to browse</p>
-              <p class="text-xs text-swamp-400 mt-1">JPEG, PNG, or WebP · max 10 MB each · up to 10 photos</p>
+              <p class="text-xs text-swamp-400 mt-1">JPEG, PNG, or WebP · up to 10 photos · automatically compressed before upload</p>
               <input
                 type="file"
                 id="photos"
@@ -792,6 +792,45 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
     if (e.dataTransfer?.files) handleFiles(e.dataTransfer.files);
   });
 
+  // ─── Client-side image compression ────────────────────────────────────
+  /**
+   * Resize and re-encode an image using the Canvas API before upload.
+   * Caps the longest side at 1920 px and exports as JPEG at 78% quality,
+   * keeping typical phone photos under ~400 KB. Canvas export also strips
+   * all EXIF metadata at the browser level (pixel data only — no GPS, no
+   * device info), complementing the server-side sharp strip.
+   * Vercel serverless functions cap request bodies at 4.5 MB on Hobby;
+   * compressing to ~400 KB per photo keeps 10 photos well within that limit.
+   */
+  async function compressImage(file: File): Promise<File> {
+    const MAX_SIDE = 1920;
+    const QUALITY  = 0.78;
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const { naturalWidth: w, naturalHeight: h } = img;
+        const scale = Math.max(w, h) > MAX_SIDE ? MAX_SIDE / Math.max(w, h) : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => resolve(new File(
+            [blob ?? new Blob()],
+            file.name.replace(/\.[^.]+$/, '.jpg'),
+            { type: 'image/jpeg', lastModified: Date.now() },
+          )),
+          'image/jpeg',
+          QUALITY,
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
   // ─── Form submission ───────────────────────────────────────────────────
   const form = document.getElementById('submit-form') as HTMLFormElement;
   const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
@@ -817,16 +856,21 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
     if (isNaN(latVal) || latVal < -90 || latVal > 90) { alert('Please enter a valid latitude (-90 to 90).'); return; }
     if (isNaN(lngVal) || lngVal < -180 || lngVal > 180) { alert('Please enter a valid longitude (-180 to 180).'); return; }
 
+    // Disable submit button before async work to prevent double-submit
+    submitBtn.disabled = true;
+    submitBtn.textContent = selectedFiles.length > 0 ? 'Compressing photos…' : 'Submitting…';
+
+    // Compress photos client-side before upload (see compressImage above)
+    const compressed = await Promise.all(selectedFiles.map(compressImage));
+
+    submitBtn.textContent = 'Submitting…';
+
     // Build FormData
     const fd = new FormData(form);
 
-    // Append selected files
-    selectedFiles.forEach((file, i) => fd.append(`photo_${i}`, file, file.name));
-    fd.set('photo_count', String(selectedFiles.length));
-
-    // Disable submit button
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting…';
+    // Append compressed files (replaces raw files — never reach the server)
+    compressed.forEach((file, i) => fd.append(`photo_${i}`, file, file.name));
+    fd.set('photo_count', String(compressed.length));
 
     try {
       const res = await fetch('/api/submit-swamp', {
