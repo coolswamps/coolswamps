@@ -358,60 +358,101 @@ export default async function handler(req, res) {
     verified: false,
   };
 
-  // ── 7. Create GitHub branch + commit ─────────────────────────────────
+  // ── 7. Create GitHub branch + single commit (Git Tree API) ────────────
+  //
+  // Using the Git Tree API instead of the Contents API PUT endpoint because
+  // PUT /contents/:path creates one commit per file. A submission with 8 photos
+  // would create 9 commits on the branch, triggering 9 Vercel preview builds
+  // (each canceling the previous) and producing a messy PR commit history.
+  //
+  // The Tree API approach:
+  //   a) Create a blob for each file (JSON + photos)
+  //   b) Assemble all blobs into a single tree
+  //   c) Create one commit pointing at that tree
+  //   d) Update the branch ref to the new commit
+  // This produces exactly one commit regardless of how many photos are attached.
   try {
-    // Get base branch SHA
+    // a) Get base commit SHA and its tree SHA
     const baseRef = await githubFetch(
       `/repos/${REPO_OWNER}/${REPO_NAME}/git/ref/heads/${BASE_BRANCH}`
     );
-    const baseSha = baseRef.object.sha;
+    const baseCommitSha = baseRef.object.sha;
 
-    // Branch name = submission/{timestamp}-{slug}
-    // The timestamp prefix guarantees uniqueness under concurrent submissions and retries.
-    // Multiple open PRs each add a single new file, so they can never conflict with each other.
+    const baseCommit = await githubFetch(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/git/commits/${baseCommitSha}`
+    );
+    const baseTreeSha = baseCommit.tree.sha;
+
+    // b) Create branch pointing at base commit
     const branchName = `submission/${submissionId}-${slug}`;
     await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/refs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ref: `refs/heads/${branchName}`,
-        sha: baseSha,
+        sha: baseCommitSha,
       }),
     });
 
-    // Helper to create/update a file in the repo
-    async function createFile(path, content, message) {
-      await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`, {
-        method: 'PUT',
+    // c) Create a blob for each file, collect tree entries
+    async function createBlob(base64Content) {
+      const res = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          content: Buffer.from(content).toString('base64'),
-          branch: branchName,
-        }),
+        body: JSON.stringify({ content: base64Content, encoding: 'base64' }),
       });
+      return res.sha;
     }
 
-    // Commit swamp JSON
     const jsonContent = JSON.stringify(swampData, null, 2);
-    await createFile(
-      `src/content/swamps/${slug}.json`,
-      jsonContent,
-      `feat: add swamp submission — ${name}`
-    );
+    const jsonBlobSha = await createBlob(Buffer.from(jsonContent).toString('base64'));
 
-    // Commit each cleaned photo
+    const treeEntries = [
+      {
+        path: `src/content/swamps/${slug}.json`,
+        mode: '100644',
+        type: 'blob',
+        sha:  jsonBlobSha,
+      },
+    ];
+
     for (const photo of processedPhotos) {
-      await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/public/photos/${photo.filename}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `feat: add photo for ${name}`,
-          content: photo.base64,
-          branch: branchName,
-        }),
+      const photoBlobSha = await createBlob(photo.base64);
+      treeEntries.push({
+        path: `public/photos/${photo.filename}`,
+        mode: '100644',
+        type: 'blob',
+        sha:  photoBlobSha,
       });
     }
+
+    // d) Create tree on top of the base tree
+    const newTree = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
+    });
+
+    // e) Create a single commit — one commit regardless of photo count
+    const photoNote = processedPhotos.length > 0
+      ? ` + ${processedPhotos.length} photo${processedPhotos.length > 1 ? 's' : ''}`
+      : '';
+    const newCommit = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/commits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `feat: add swamp submission — ${name}${photoNote}`,
+        tree:    newTree.sha,
+        parents: [baseCommitSha],
+      }),
+    });
+
+    // f) Advance the branch ref to the new commit
+    await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/refs/heads/${branchName}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sha: newCommit.sha }),
+    });
 
     // Open pull request — one file added, zero files modified, so no other open PR
     // can ever conflict with this one. Merging in any order is always safe.

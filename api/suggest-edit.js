@@ -341,16 +341,23 @@ export default async function handler(req, res) {
     diffRow('Historical Notes',orig.historical_notes, historical_notes),
   ].filter(Boolean);
 
-  // ── 8. Create GitHub branch + commit ──────────────────────────────────
+  // ── 8. Create GitHub branch + single commit (Git Tree API) ──────────────
+  // Using the Tree API for consistency with submit-swamp.js — one clean commit
+  // per suggestion, one Vercel preview build, no per-file commit noise.
   const submissionId = Date.now().toString();
   const branchName   = `edit/${submissionId}-${slug}`;
 
   try {
-    // Get base branch SHA
+    // Get base commit SHA and its tree SHA
     const baseRef = await githubFetch(
       `/repos/${REPO_OWNER}/${REPO_NAME}/git/ref/heads/${BASE_BRANCH}`
     );
-    const baseSha = baseRef.object.sha;
+    const baseCommitSha = baseRef.object.sha;
+
+    const baseCommit = await githubFetch(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/git/commits/${baseCommitSha}`
+    );
+    const baseTreeSha = baseCommit.tree.sha;
 
     // Create the edit branch
     await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/refs`, {
@@ -358,25 +365,53 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ref: `refs/heads/${branchName}`,
-        sha: baseSha,
+        sha: baseCommitSha,
       }),
     });
 
-    // Update the JSON file on the new branch (PUT with existing SHA)
+    // Create a blob for the updated JSON
     const jsonContent = JSON.stringify(updatedData, null, 2);
-    await githubFetch(
-      `/repos/${REPO_OWNER}/${REPO_NAME}/contents/src/content/swamps/${slug}.json`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `edit: update swamp — ${name}`,
-          content: Buffer.from(jsonContent).toString('base64'),
-          branch: branchName,
-          sha: fileSha,
-        }),
-      }
-    );
+    const jsonBlob = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/blobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content:  Buffer.from(jsonContent).toString('base64'),
+        encoding: 'base64',
+      }),
+    });
+
+    // Create a tree that replaces only the one changed file
+    const newTree = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/trees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base_tree: baseTreeSha,
+        tree: [{
+          path: `src/content/swamps/${slug}.json`,
+          mode: '100644',
+          type: 'blob',
+          sha:  jsonBlob.sha,
+        }],
+      }),
+    });
+
+    // Create a single commit
+    const newCommit = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/commits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `edit: update swamp — ${name}`,
+        tree:    newTree.sha,
+        parents: [baseCommitSha],
+      }),
+    });
+
+    // Advance branch ref to the new commit
+    await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/refs/heads/${branchName}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sha: newCommit.sha }),
+    });
 
     // ── 9. Open pull request ───────────────────────────────────────────
     const mapLink  = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=14`;
