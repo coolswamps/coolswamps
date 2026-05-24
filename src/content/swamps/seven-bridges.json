@@ -1,0 +1,82 @@
+{
+  "name": "Seven Bridges",
+  "status": "visited",
+  "coordinates": {
+    "lat": 44.813849,
+    "lng": -85.222151
+  },
+  "state": "Michigan",
+  "county": "Kalkaska",
+  "country": "USA",
+  "description": "Once slated for subdivision, this amazing place is now a jewel for all to enjoy. Known for its beautiful, rustic bridges, this enchanting property has more than a mile of frontage on the Rapid River. A trail and boardwalk wander through cedar trees and over bridges spanning the Rapid River, which is braided into several channels here. The remains of a sawmill built in 1882 can still be seen when crossing the first three bridges. Despite its name, only four bridges exist today.",
+  "area_acres": 314,
+  "tags": {
+    "terrain": [
+      "cypress-swamp"
+    ],
+    "habitat": [
+      "forested-wetland"
+    ],
+    "soil": [],
+    "water_type": [
+      "clearwater",
+      "whitewater"
+    ],
+    "topography": [
+      "riverine"
+    ],
+    "activities": [
+      "hiking",
+      "birding",
+      "photography",
+      "fishing",
+      "hunting",
+      "botanizing",
+      "herping"
+    ],
+    "vegetation": [
+      "Jack in the Pulpit",
+      "Trillium"
+    ],
+    "custom": []
+  },
+  "difficulty": "easy",
+  "best_season": [
+    "spring",
+    "summer"
+  ],
+  "ratings": {
+    "novelty": 5,
+    "accessibility": 5,
+    "habitat": 5
+  },
+  "photos": [
+    {
+      "filename": "25aa5d44c2c123cf.jpg"
+    },
+    {
+      "filename": "25f715dde423d16b.jpg"
+    },
+    {
+      "filename": "a34f8c9ec1e07501.jpg"
+    },
+    {
+      "filename": "3bab5bc2a115011b.jpg"
+    },
+    {
+      "filename": "80df47e70ba3708b.jpg"
+    },
+    {
+      "filename": "81e92775d81a0281.jpg"
+    },
+    {
+      "filename": "943818c821257547.jpg"
+    },
+    {
+      "filename": "a7ad8b2d952fa2e8.jpg"
+    }
+  ],
+  "submitted_date": "2026-05-24",
+  "last_updated": "2026-05-24",
+  "verified": false
+}
