@@ -8,7 +8,7 @@
   "state": "Virginia",
   "county": "Chesapeake",
   "country": "USA",
-  "description": "One of the largest and most historically significant swamps on the East Coast. The Great Dismal Swamp spans approximately 111,000 acres across Virginia and North Carolina. A vast Atlantic white cedar and bald cypress wetland forest, it is home to an exceptional diversity of wildlife and served as a refuge for freedom seekers via the Underground Railroad. Lake Drummond sits at its center — a rare, naturally occurring lake in the mid-Atlantic region.",
+  "description": "One of the largest and most historically significant swamps on the East Coast. The Great Dismal Swamp spans approximately 111,000 acres across Virginia and North Carolina. A vast Atlantic white cedar and bald cypress wetland forest, it is home to an exceptional diversity of wildlife and served as a refuge for freedom seekers via the Underground Railroad. Lake Drummond sits at its center — a rare, naturally occurring lake in the mid-Atlantic region.    Photo By U.S. Fish and Wildlife Service Northeast Region - Photo of the Week - Great Dismal Swamp National Wildlife Refuge (VA)Uploaded by AlbertHerring, CC BY 2.0, https://commons.wikimedia.org/w/index.php?curid=30924548",
   "access_notes": "Primary access via Desert Rd (SR-642) off US-17. Washington Ditch Rd provides a long linear trail into the interior. Multiple USFWS trailheads with parking. Boardwalk trail at the Dismal Swamp Welcome Center in Chesapeake, VA.",
   "wildlife_notes": "Home to over 200 bird species. Black bear, bobcat, otter, and white-tailed deer. Cottonmouth, copperhead, and numerous non-venomous snake species. Breeding habitat for prothonotary warbler and Wayne's black-throated green warbler subspecies.",
   "historical_notes": "George Washington surveyed the swamp in 1763 and invested in a timber company here. Maroon communities of escaped enslaved people, known as 'maroons,' lived in the swamp for generations. Harriet Beecher Stowe referenced the swamp in her writing.",
@@ -65,7 +65,11 @@
     "spring",
     "fall"
   ],
-  "photos": [],
+  "photos": [
+    {
+      "filename": "55e3f89b2b136148.jpg"
+    }
+  ],
   "submitted_date": "2026-05-22",
   "last_updated": "2026-05-24",
   "verified": false
