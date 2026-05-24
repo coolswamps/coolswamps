@@ -1,7 +1,10 @@
 {
   "name": "Great Dismal Swamp",
-  "status": "visited",
-  "coordinates": { "lat": 36.5771, "lng": -76.4496 },
+  "status": "want-to-visit",
+  "coordinates": {
+    "lat": 36.5771,
+    "lng": -76.4496
+  },
   "state": "Virginia",
   "county": "Chesapeake",
   "country": "USA",
@@ -12,20 +15,58 @@
   "area_acres": 111200,
   "elevation_ft": 20,
   "tags": {
-    "terrain": ["bottomland-forest", "cypress-swamp", "peat-bog"],
-    "habitat": ["forested-wetland", "shrub-wetland"],
-    "soil": ["histosol", "peat", "organic"],
-    "water_type": ["blackwater", "standing-water", "perennial"],
-    "topography": ["flat", "depression"],
-    "activities": ["hiking", "birding", "kayaking", "photography", "wildlife-watching", "botanizing"],
-    "vegetation": ["atlantic-white-cedar", "bald-cypress", "red-maple", "sweetbay-magnolia", "sphagnum-moss", "Virginia-chain-fern"],
-    "custom": ["underground-railroad-history", "lake-drummond", "national-wildlife-refuge"]
+    "terrain": [
+      "bottomland-forest",
+      "peat-bog",
+      "cypress-swamp"
+    ],
+    "habitat": [
+      "forested-wetland",
+      "shrub-wetland"
+    ],
+    "soil": [
+      "histosol",
+      "peat",
+      "organic"
+    ],
+    "water_type": [
+      "blackwater",
+      "standing-water",
+      "perennial"
+    ],
+    "topography": [
+      "flat",
+      "depression"
+    ],
+    "activities": [
+      "hiking",
+      "kayaking",
+      "birding",
+      "wildlife-watching",
+      "photography",
+      "botanizing"
+    ],
+    "vegetation": [
+      "atlantic-white-cedar",
+      "bald-cypress",
+      "red-maple",
+      "sweetbay-magnolia",
+      "sphagnum-moss",
+      "Virginia-chain-fern"
+    ],
+    "custom": [
+      "underground-railroad-history",
+      "lake-drummond",
+      "national-wildlife-refuge"
+    ]
   },
   "difficulty": "easy",
-  "best_season": ["spring", "fall"],
+  "best_season": [
+    "spring",
+    "fall"
+  ],
   "photos": [],
-  "ratings": { "novelty": 5, "accessibility": 4, "habitat": 5 },
   "submitted_date": "2026-05-22",
-  "last_updated": "2026-05-22",
-  "verified": true
+  "last_updated": "2026-05-24",
+  "verified": false
 }
