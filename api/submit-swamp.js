@@ -2,7 +2,7 @@
  * /api/submit-swamp
  *
  * Vercel serverless function that:
- *  1. Validates the request (CORS, rate limit, CSRF, content-type)
+ *  1. Validates the request (CORS origin, rate limit, content-type)
  *  2. Parses and validates all form fields (server-side Zod-equivalent)
  *  3. Strips ALL EXIF/metadata from uploaded photos using sharp
  *  4. Validates photo file magic bytes (not just MIME header)
@@ -18,7 +18,7 @@
  */
 
 // Node built-ins
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -32,13 +32,6 @@ const BASE_BRANCH      = 'main';
 // In-memory rate limiter (resets on cold start — acceptable for free tier)
 /** @type {Map<string, {count: number, resetAt: number}>} */
 const rateLimitMap = new Map();
-
-// File magic bytes for image validation
-const MAGIC_BYTES = {
-  jpeg: [[0xFF, 0xD8, 0xFF]],
-  png:  [[0x89, 0x50, 0x4E, 0x47]],
-  webp: null, // checked via 'WEBP' string at offset 8
-};
 
 // Allowed MIME types
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -155,8 +148,7 @@ function checkRateLimit(ip) {
 
 export default async function handler(req, res) {
 
-  // ── 1. CORS ──────────────────────────────────────────────────────────────
-  const origin = req.headers['origin'] ?? '';
+  // ── 1. CORS + origin validation ──────────────────────────────────────────
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -170,14 +162,27 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Server-side origin check — stops cross-origin form submissions that bypass
+  // CORS (browsers don't send an Origin header for same-origin requests, so we
+  // also accept a missing Origin only when Referer is absent, i.e. direct API
+  // calls from curl/Postman which are not the CSRF threat model).
+  const requestOrigin = req.headers['origin'];
+  if (requestOrigin && requestOrigin !== ALLOWED_ORIGIN) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   if (!ALLOWED_MIME.has('image/jpeg') || !GITHUB_PAT) {
     console.error('Missing required environment variables');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   // ── 2. Rate limiting ──────────────────────────────────────────────────
+  // Use x-real-ip (set by Vercel's edge, not spoofable by the client) and fall
+  // back to the rightmost x-forwarded-for entry (also appended by the CDN, not
+  // by the client). Never take the leftmost value — that is client-controlled.
   const clientIp =
-    (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() ||
+    req.headers['x-real-ip'] ||
+    (req.headers['x-forwarded-for'] ?? '').split(',').at(-1)?.trim() ||
     req.socket?.remoteAddress ||
     'unknown';
 

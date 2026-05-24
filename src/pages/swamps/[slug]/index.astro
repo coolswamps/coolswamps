@@ -45,7 +45,10 @@ const googleMapsUrl = hasCoords
   ? `https://www.google.com/maps?q=${swamp.coordinates.lat},${swamp.coordinates.lng}`
   : null;
 
-// JSON-LD structured data for this swamp
+// JSON-LD structured data for this swamp.
+// JSON.stringify does NOT escape </script>, so a name/description containing
+// that sequence would break out of the script block and enable stored XSS.
+// Unicode-escape <, >, and / so the JSON is safe inside any HTML context.
 const jsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Place",
@@ -62,7 +65,10 @@ const jsonLd = JSON.stringify({
     "addressLocality": swamp.county,
     "addressCountry": swamp.country ?? 'US',
   }
-});
+})
+  .replace(/</g, '\\u003c')
+  .replace(/>/g, '\\u003e')
+  .replace(/\//g, '\\u002f');
 ---
 
 <BaseLayout

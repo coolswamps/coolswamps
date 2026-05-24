@@ -15,9 +15,26 @@
 const EBIRD_API_KEY   = process.env.EBIRD_API_KEY;
 const EBIRD_BASE      = 'https://api.ebird.org/v2';
 const ALLOWED_ORIGIN  = process.env.ALLOWED_ORIGIN ?? 'https://coolswamps.com';
+const RATE_LIMIT_MAX  = 60; // requests per IP per hour — eBird free tier is generous but finite
 
 // Allowed proxy endpoints — whitelist only, prevents open-proxy abuse
 const ALLOWED_TYPES = new Set(['hotspots', 'nearby']);
+
+// In-memory rate limiter (resets on cold start — same policy as other handlers)
+/** @type {Map<string, {count: number, resetAt: number}>} */
+const rateLimitMap = new Map();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + 3_600_000 });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
 
 export default async function handler(req, res) {
 
@@ -27,6 +44,17 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET')     return res.status(405).json({ error: 'Method not allowed' });
+
+  // Rate limiting — use Vercel's trusted IP headers (not client-spoofable)
+  const clientIp =
+    req.headers['x-real-ip'] ||
+    (req.headers['x-forwarded-for'] ?? '').split(',').at(-1)?.trim() ||
+    req.socket?.remoteAddress ||
+    'unknown';
+
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait before trying again.' });
+  }
 
   if (!EBIRD_API_KEY) {
     console.error('EBIRD_API_KEY is not set');

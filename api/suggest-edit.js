@@ -2,7 +2,7 @@
  * /api/suggest-edit
  *
  * Vercel serverless function that:
- *  1. Validates the request (CORS, rate limit, CSRF, content-type)
+ *  1. Validates the request (CORS origin, rate limit, content-type)
  *  2. Parses and validates all form fields (server-side validation)
  *  3. Verifies the target slug exists in the repo (GitHub Contents API)
  *  4. Merges submitted fields with immutable original fields
@@ -152,7 +152,7 @@ function diffRow(label, oldVal, newVal) {
 
 export default async function handler(req, res) {
 
-  // ── 1. CORS ────────────────────────────────────────────────────────────
+  // ── 1. CORS + origin validation ────────────────────────────────────────
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -166,14 +166,25 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Server-side origin check — stops cross-origin form submissions that bypass
+  // CORS (missing Origin is accepted for direct API calls; present-but-wrong is
+  // always rejected as a potential CSRF attempt from another site).
+  const requestOrigin = req.headers['origin'];
+  if (requestOrigin && requestOrigin !== ALLOWED_ORIGIN) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   if (!GITHUB_PAT) {
     console.error('GITHUB_PAT environment variable is not set');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   // ── 2. Rate limiting ───────────────────────────────────────────────────
+  // Use x-real-ip (Vercel edge header, not client-controllable) and fall back
+  // to the rightmost x-forwarded-for value (appended by CDN, not the client).
   const clientIp =
-    (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() ||
+    req.headers['x-real-ip'] ||
+    (req.headers['x-forwarded-for'] ?? '').split(',').at(-1)?.trim() ||
     req.socket?.remoteAddress ||
     'unknown';
 
