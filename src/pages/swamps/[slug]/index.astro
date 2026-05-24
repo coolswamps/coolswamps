@@ -148,15 +148,32 @@ const jsonLd = JSON.stringify({
             </div>
             <div class="card-body">
               <div class="grid grid-cols-2 gap-3">
-                {swamp.photos.map((photo: any) => (
-                  <figure class="relative rounded-lg overflow-hidden aspect-video bg-swamp-100">
+                {swamp.photos.map((photo: any, i: number) => (
+                  <figure
+                    class="relative rounded-lg overflow-hidden aspect-video bg-swamp-100 cursor-pointer group"
+                    data-lightbox-src={`/photos/${photo.filename}`}
+                    data-lightbox-caption={photo.caption ?? swamp.name}
+                    data-lightbox-index={i}
+                    role="button"
+                    tabindex="0"
+                    aria-label={`View full size: ${photo.caption ?? swamp.name}`}
+                  >
                     <img
                       src={`/photos/${photo.filename}`}
                       alt={photo.caption ?? swamp.name}
-                      class="w-full h-full object-cover"
+                      class="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                       loading="lazy"
                       decoding="async"
                     />
+                    <!-- Expand hint shown on hover -->
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors
+                                flex items-center justify-center pointer-events-none">
+                      <svg class="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"
+                           width="30" height="30" viewBox="0 0 24 24" fill="none"
+                           stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+                      </svg>
+                    </div>
                     {photo.caption && (
                       <figcaption class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs px-2 py-1">
                         {photo.caption}
@@ -231,11 +248,63 @@ const jsonLd = JSON.stringify({
         <!-- Mini map for this swamp -->
         {hasCoords && (
           <div class="card">
-            <div class="card-header">
+            <div class="card-header flex items-center justify-between gap-3">
               <h2 class="text-base font-semibold text-swamp-900">Location</h2>
+
+              <!-- Open in… dropdown -->
+              <div class="relative shrink-0" id="map-open-wrap">
+                <button id="map-open-btn" type="button"
+                        class="inline-flex items-center gap-1 text-xs font-medium text-swamp-600
+                               hover:text-swamp-900 border border-swamp-200 rounded-md px-2.5 py-1
+                               hover:bg-swamp-50 transition-colors"
+                        aria-haspopup="true" aria-expanded="false">
+                  Open in
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                <div id="map-open-menu"
+                     class="hidden absolute right-0 top-full mt-1 w-48 bg-white border border-swamp-200
+                            rounded-lg shadow-lg z-20 py-1 text-sm"
+                     role="menu">
+                  <a href={`https://www.google.com/maps?q=${swamp.coordinates.lat},${swamp.coordinates.lng}`}
+                     target="_blank" rel="noopener noreferrer"
+                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
+                     role="menuitem">
+                    Google Maps ↗
+                  </a>
+                  <a href={`https://www.openstreetmap.org/?mlat=${swamp.coordinates.lat}&mlon=${swamp.coordinates.lng}&zoom=14`}
+                     target="_blank" rel="noopener noreferrer"
+                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
+                     role="menuitem">
+                    OpenStreetMap ↗
+                  </a>
+                  <a href={`https://caltopo.com/map.html#ll=${swamp.coordinates.lat},${swamp.coordinates.lng}&z=14&b=mbt&a=sf`}
+                     target="_blank" rel="noopener noreferrer"
+                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
+                     role="menuitem">
+                    CalTopo ↗
+                  </a>
+                  <a href={`https://www.inaturalist.org/observations?lat=${swamp.coordinates.lat}&lng=${swamp.coordinates.lng}&radius=5&view=map`}
+                     target="_blank" rel="noopener noreferrer"
+                     class="flex items-center gap-2 px-3 py-2 text-swamp-700 hover:bg-swamp-50 transition-colors"
+                     role="menuitem">
+                    iNaturalist nearby ↗
+                  </a>
+                </div>
+              </div>
             </div>
+
+            <!-- Map container — coordinates passed via data attributes (define:vars
+                 cannot be combined with ES module imports in Astro) -->
             <div class="card-body p-0 overflow-hidden rounded-b-xl">
-              <div id="swamp-mini-map" style="height:280px;width:100%"></div>
+              <div id="swamp-mini-map"
+                   data-lat={swamp.coordinates.lat}
+                   data-lng={swamp.coordinates.lng}
+                   data-name={swamp.name}
+                   data-status={swamp.status}
+                   style="height:280px;width:100%"></div>
             </div>
           </div>
         )}
@@ -418,7 +487,7 @@ const jsonLd = JSON.stringify({
           </div>
         )}
 
-        <!-- Meta -->
+        <!-- Submitted / updated dates -->
         <div class="text-xs text-swamp-400 space-y-1 px-1">
           <p>Submitted: {swamp.submitted_date}</p>
           <p>Last updated: {swamp.last_updated}</p>
@@ -439,25 +508,166 @@ const jsonLd = JSON.stringify({
   </div>
 </BaseLayout>
 
-<!-- Mini map for individual swamp page — uses npm Leaflet (no CDN race condition) -->
-{hasCoords && (
-  <script define:vars={{ lat: swamp.coordinates.lat, lng: swamp.coordinates.lng, name: swamp.name, status: swamp.status }}>
-    import L from 'leaflet';
-    import 'leaflet/dist/leaflet.css';
-    const el = document.getElementById('swamp-mini-map');
-    if (el) {
-      const miniMap = L.map('swamp-mini-map', { zoomControl: true, scrollWheelZoom: false }).setView([lat, lng], 11);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(miniMap);
-      const color = status === 'visited' ? '#0d9488' : '#ea580c';
-      const icon = L.divIcon({
-        className: '',
-        html: `<div style="width:22px;height:22px;background:${color};border:2px solid rgba(0,0,0,0.4);border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:2px 2px 4px rgba(0,0,0,0.3)"></div>`,
-        iconSize: [22, 22], iconAnchor: [11, 22],
-      });
-      L.marker([lat, lng], { icon, title: name }).addTo(miniMap);
-    }
-  </script>
+<!-- ── Lightbox overlay ───────────────────────────────────────────────────── -->
+{swamp.photos.length > 0 && (
+  <div id="lightbox"
+       class="fixed inset-0 z-50 hidden items-center justify-center bg-black/92"
+       role="dialog" aria-modal="true" aria-label="Photo viewer">
+
+    <!-- Close -->
+    <button id="lightbox-close"
+            class="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-10 p-1"
+            aria-label="Close photo viewer">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+
+    <!-- Previous -->
+    <button id="lightbox-prev"
+            class="absolute left-3 sm:left-5 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors z-10 p-2 hidden"
+            aria-label="Previous photo">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+
+    <!-- Image + caption -->
+    <div class="flex flex-col items-center gap-3 px-14">
+      <img id="lightbox-img" src="" alt=""
+           class="max-w-[90vw] max-h-[82vh] object-contain rounded shadow-2xl" />
+      <div class="flex items-center gap-4 text-sm min-h-[1.5rem]">
+        <span id="lightbox-caption" class="text-white/85"></span>
+        <span id="lightbox-counter" class="text-white/45 font-mono text-xs"></span>
+      </div>
+    </div>
+
+    <!-- Next -->
+    <button id="lightbox-next"
+            class="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors z-10 p-2 hidden"
+            aria-label="Next photo">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </button>
+  </div>
 )}
+
+<script>
+// ── Lightbox ───────────────────────────────────────────────────────────────────
+const lightbox     = document.getElementById('lightbox');
+const lbImg        = document.getElementById('lightbox-img') as HTMLImageElement | null;
+const lbCaption    = document.getElementById('lightbox-caption');
+const lbCounter    = document.getElementById('lightbox-counter');
+const lbClose      = document.getElementById('lightbox-close');
+const lbPrev       = document.getElementById('lightbox-prev');
+const lbNext       = document.getElementById('lightbox-next');
+
+if (lightbox && lbImg) {
+  const figures = Array.from(
+    document.querySelectorAll<HTMLElement>('[data-lightbox-src]')
+  );
+  let current = 0;
+
+  function openAt(index: number) {
+    current = (index + figures.length) % figures.length;
+    const fig = figures[current];
+    lbImg!.src = fig.dataset.lightboxSrc!;
+    lbImg!.alt = fig.dataset.lightboxCaption ?? '';
+    if (lbCaption) lbCaption.textContent = fig.dataset.lightboxCaption ?? '';
+    if (lbCounter) lbCounter.textContent = figures.length > 1 ? `${current + 1} / ${figures.length}` : '';
+    if (figures.length > 1) {
+      lbPrev?.classList.remove('hidden');
+      lbNext?.classList.remove('hidden');
+    }
+    lightbox.classList.remove('hidden');
+    lightbox.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+    lbClose?.focus();
+  }
+
+  function close() {
+    lightbox.classList.add('hidden');
+    lightbox.classList.remove('flex');
+    document.body.style.overflow = '';
+    lbImg!.src = '';
+  }
+
+  // Open on click / Enter / Space
+  figures.forEach((fig, i) => {
+    fig.addEventListener('click', () => openAt(i));
+    fig.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAt(i); }
+    });
+  });
+
+  lbClose?.addEventListener('click', close);
+  lbPrev?.addEventListener('click',  () => openAt(current - 1));
+  lbNext?.addEventListener('click',  () => openAt(current + 1));
+
+  // Click on the dark backdrop (not the image) to close
+  lightbox.addEventListener('click', (e: MouseEvent) => {
+    if (e.target === lightbox) close();
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (lightbox.classList.contains('hidden')) return;
+    if (e.key === 'Escape')     close();
+    if (e.key === 'ArrowLeft')  openAt(current - 1);
+    if (e.key === 'ArrowRight') openAt(current + 1);
+  });
+}
+</script>
+
+<!-- Mini map + dropdown — regular module script reads coordinates from data-* attributes.
+     Astro does not allow ES module imports inside define:vars scripts, so we pass
+     server-side values through the DOM instead. -->
+<script>
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// ── Mini map ──────────────────────────────────────────────────────────────────
+const mapEl = document.getElementById('swamp-mini-map') as HTMLElement | null;
+if (mapEl) {
+  const lat    = parseFloat(mapEl.dataset.lat    ?? '0');
+  const lng    = parseFloat(mapEl.dataset.lng    ?? '0');
+  const name   = mapEl.dataset.name   ?? '';
+  const status = mapEl.dataset.status ?? '';
+
+  const miniMap = L.map('swamp-mini-map', { zoomControl: true, scrollWheelZoom: false })
+    .setView([lat, lng], 11);
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(miniMap);
+
+  const color = status === 'visited' ? '#0d9488' : '#ea580c';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:22px;height:22px;background:${color};border:2px solid rgba(0,0,0,0.4);
+                       border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+                       box-shadow:2px 2px 4px rgba(0,0,0,0.3)"></div>`,
+    iconSize: [22, 22], iconAnchor: [11, 22],
+  });
+  L.marker([lat, lng], { icon, title: name }).addTo(miniMap);
+}
+
+// ── "Open in" dropdown ────────────────────────────────────────────────────────
+const openBtn  = document.getElementById('map-open-btn');
+const openMenu = document.getElementById('map-open-menu');
+if (openBtn && openMenu) {
+  openBtn.addEventListener('click', (e: MouseEvent) => {
+    e.stopPropagation();
+    const isOpen = !openMenu.classList.contains('hidden');
+    openMenu.classList.toggle('hidden');
+    openBtn.setAttribute('aria-expanded', String(!isOpen));
+  });
+  // Close when clicking anywhere outside
+  document.addEventListener('click', () => {
+    openMenu.classList.add('hidden');
+    openBtn.setAttribute('aria-expanded', 'false');
+  });
+}
+</script>
