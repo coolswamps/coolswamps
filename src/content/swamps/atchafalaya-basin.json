@@ -23,6 +23,7 @@
   "difficulty": "moderate",
   "best_season": ["spring", "fall", "winter"],
   "photos": [],
+  "ratings": { "novelty": 5, "accessibility": 2, "habitat": 5 },
   "submitted_date": "2026-05-22",
   "last_updated": "2026-05-22",
   "verified": true

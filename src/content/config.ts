@@ -55,6 +55,13 @@ const swampSchema = z.object({
     credit:   z.string().max(200).optional(),
   })).default([]),
 
+  // Ratings (each 1–5, all optional)
+  ratings: z.object({
+    novelty:       z.number().int().min(1).max(5), // Novelty / Uniqueness
+    accessibility: z.number().int().min(1).max(5), // Social Setting Quality
+    habitat:       z.number().int().min(1).max(5), // Habitat Quality
+  }).partial().optional(),
+
   // Meta
   submitted_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   last_updated:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

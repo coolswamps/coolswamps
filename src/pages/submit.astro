@@ -345,11 +345,59 @@ import {
         </div>
       </section>
 
-      <!-- ── Section 5: Photos ─────────────────────────────────────────── -->
+      <!-- ── Section 5: Ratings ────────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-ratings">
+        <div class="card-header">
+          <h2 id="section-ratings" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+            Ratings
+          </h2>
+        </div>
+        <div class="card-body space-y-6">
+          <p class="text-sm text-swamp-600">
+            Optional — rate this wetland on three dimensions. Click a star to set your rating; click it again to clear.
+          </p>
+
+          <!-- Novelty / Uniqueness -->
+          <div>
+            <input type="hidden" name="rating_novelty" id="rating_novelty" value="" />
+            <div class="flex items-baseline justify-between mb-0.5">
+              <label class="form-label mb-0" for="rating_novelty">Novelty / Uniqueness</label>
+              <span id="display_novelty" class="text-xs text-swamp-400">Not rated</span>
+            </div>
+            <p class="form-hint mb-2">How rare or distinctive is this wetland compared to others you have seen?</p>
+            <div class="star-picker flex gap-1" data-input="rating_novelty" data-display="display_novelty" role="group" aria-label="Rate novelty and uniqueness"></div>
+          </div>
+
+          <!-- Social Setting Quality -->
+          <div>
+            <input type="hidden" name="rating_accessibility" id="rating_accessibility" value="" />
+            <div class="flex items-baseline justify-between mb-0.5">
+              <label class="form-label mb-0" for="rating_accessibility">Social Setting Quality</label>
+              <span id="display_accessibility" class="text-xs text-swamp-400">Not rated</span>
+            </div>
+            <p class="form-hint mb-2">How easy is it for most people to access and enjoy this wetland?</p>
+            <div class="star-picker flex gap-1" data-input="rating_accessibility" data-display="display_accessibility" role="group" aria-label="Rate social setting quality"></div>
+          </div>
+
+          <!-- Habitat Quality -->
+          <div>
+            <input type="hidden" name="rating_habitat" id="rating_habitat" value="" />
+            <div class="flex items-baseline justify-between mb-0.5">
+              <label class="form-label mb-0" for="rating_habitat">Habitat Quality</label>
+              <span id="display_habitat" class="text-xs text-swamp-400">Not rated</span>
+            </div>
+            <p class="form-hint mb-2">How healthy and ecologically diverse does this wetland appear?</p>
+            <div class="star-picker flex gap-1" data-input="rating_habitat" data-display="display_habitat" role="group" aria-label="Rate habitat quality"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Section 6: Photos ─────────────────────────────────────────── -->
       <section class="card" aria-labelledby="section-photos">
         <div class="card-header">
           <h2 id="section-photos" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
-            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">6</span>
             Photos
           </h2>
         </div>
@@ -594,7 +642,66 @@ addressInput.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Enter') { e.preventDefault(); searchAddress(); }
 });
 
-  // ─── Photo upload & validation ─────────────────────────────────────────
+  // ─── Star rating pickers ──────────────────────────────────────────────────────
+document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
+  const inputId   = container.dataset.input!;
+  const displayId = container.dataset.display!;
+  const input     = document.getElementById(inputId)   as HTMLInputElement;
+  const display   = document.getElementById(displayId)!;
+  let current     = 0;
+
+  const labels = ['', 'Poor', 'Fair', 'Good', 'Great', 'Exceptional'];
+
+  // Build 5 star buttons
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', `${i} — ${labels[i]}`);
+    btn.setAttribute('aria-pressed', 'false');
+    btn.dataset.val = String(i);
+    btn.style.cssText = [
+      'font-size:2rem',
+      'line-height:1',
+      'border:none',
+      'background:none',
+      'cursor:pointer',
+      'padding:2px 3px',
+      'color:#d1d5db',
+      'transition:color 0.08s,transform 0.08s',
+    ].join(';');
+    btn.textContent = '★';
+
+    btn.addEventListener('mouseenter', () => paint(i));
+    btn.addEventListener('mouseleave', () => paint(current));
+    btn.addEventListener('click', () => {
+      // Clicking the same star a second time clears the rating
+      if (current === i) {
+        current = 0;
+        input.value = '';
+        display.textContent = 'Not rated';
+      } else {
+        current = i;
+        input.value = String(i);
+        display.textContent = `${i} / 5 — ${labels[i]}`;
+      }
+      paint(current);
+      container.querySelectorAll('button').forEach((b, idx) => {
+        b.setAttribute('aria-pressed', String(idx < current));
+      });
+    });
+
+    container.appendChild(btn);
+  }
+
+  function paint(n: number) {
+    container.querySelectorAll<HTMLElement>('button').forEach((btn, idx) => {
+      btn.style.color     = idx < n ? '#f59e0b' : '#d1d5db';
+      btn.style.transform = idx < n ? 'scale(1.1)' : 'scale(1)';
+    });
+  }
+});
+
+// ─── Photo upload & validation ─────────────────────────────────────────
   const dropZone    = document.getElementById('drop-zone')!;
   const fileInput   = document.getElementById('photos') as HTMLInputElement;
   const preview     = document.getElementById('photo-preview')!;

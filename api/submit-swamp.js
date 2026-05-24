@@ -256,6 +256,15 @@ export default async function handler(req, res) {
 
   const difficulty = VALID_DIFFICULTY.has(field('difficulty')) ? field('difficulty') : undefined;
 
+  // Ratings — each is an optional integer 1–5
+  function parseRating(val) {
+    const n = parseInt(val, 10);
+    return Number.isInteger(n) && n >= 1 && n <= 5 ? n : undefined;
+  }
+  const ratingNovelty       = parseRating(field('rating_novelty'));
+  const ratingAccessibility = parseRating(field('rating_accessibility'));
+  const ratingHabitat       = parseRating(field('rating_habitat'));
+
   // Vegetation: split by comma, sanitize each tag
   const vegRaw  = sanitizeText(field('vegetation'), 1000);
   const vegetation = vegRaw ? vegRaw.split(',').map(v => sanitizeText(v, 100)).filter(Boolean).slice(0, 30) : [];
@@ -333,6 +342,13 @@ export default async function handler(req, res) {
     tags: { terrain, habitat, soil, water_type, topography, activities, vegetation, custom },
     ...(difficulty  ? { difficulty }  : {}),
     ...(best_season.length ? { best_season } : {}),
+    ...(ratingNovelty !== undefined || ratingAccessibility !== undefined || ratingHabitat !== undefined
+      ? { ratings: {
+          ...(ratingNovelty       !== undefined ? { novelty:       ratingNovelty }       : {}),
+          ...(ratingAccessibility !== undefined ? { accessibility: ratingAccessibility } : {}),
+          ...(ratingHabitat       !== undefined ? { habitat:       ratingHabitat }       : {}),
+        }}
+      : {}),
     photos: processedPhotos.map(p => ({ filename: p.filename })),
     submitted_date: today,
     last_updated:   today,
@@ -416,6 +432,7 @@ export default async function handler(req, res) {
       `| **Difficulty** | ${difficulty || '—'} |`,
       `| **Best Season** | ${best_season.join(', ') || '—'} |`,
       `| **Area** | ${area_acres ? `${area_acres.toLocaleString()} acres` : '—'} |`,
+      `| **Ratings** | Novelty: ${ratingNovelty ?? '—'} · Accessibility: ${ratingAccessibility ?? '—'} · Habitat: ${ratingHabitat ?? '—'} |`,
       `| **Photos** | ${processedPhotos.length} uploaded (EXIF fully stripped) |`,
       ``,
       `**[📍 Verify map pin location](${mapLink})**`,

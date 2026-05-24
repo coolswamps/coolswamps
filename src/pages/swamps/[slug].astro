@@ -13,6 +13,25 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const swamp = entry.data;
 
+// ─── Rating rows ──────────────────────────────────────────────────────────────
+const ratingRows = [
+  {
+    key:   'novelty'       as const,
+    label: 'Novelty / Uniqueness',
+    desc:  'How rare or distinctive is this wetland?',
+  },
+  {
+    key:   'accessibility' as const,
+    label: 'Social Setting Quality',
+    desc:  'How easy is it for most people to access and enjoy?',
+  },
+  {
+    key:   'habitat'       as const,
+    label: 'Habitat Quality',
+    desc:  'How healthy and diverse is the ecosystem?',
+  },
+].filter(r => swamp.ratings?.[r.key] !== undefined);
+
 const terrainLabels = swamp.tags?.terrain?.map((t: string) => t.replace(/-/g, ' ')) ?? [];
 const activityLabels = swamp.tags?.activities?.map((a: string) => a.replace(/-/g, ' ')) ?? [];
 const soilLabels = swamp.tags?.soil?.map((s: string) => s.replace(/-/g, ' ')) ?? [];
@@ -224,6 +243,39 @@ const jsonLd = JSON.stringify({
 
       <!-- Sidebar -->
       <div class="space-y-5">
+
+        <!-- Ratings -->
+        {ratingRows.length > 0 && (
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-base font-semibold text-swamp-900">Ratings</h2>
+            </div>
+            <div class="card-body divide-y divide-swamp-50">
+              {ratingRows.map(r => {
+                const score = swamp.ratings![r.key]!;
+                return (
+                  <div class="py-3 first:pt-0 last:pb-0">
+                    <div class="flex items-baseline justify-between mb-0.5">
+                      <span class="text-sm font-medium text-swamp-800">{r.label}</span>
+                      <span class="text-xs font-semibold text-swamp-400">{score} / 5</span>
+                    </div>
+                    <p class="text-xs text-swamp-500 mb-1.5">{r.desc}</p>
+                    <div class="flex gap-0.5" role="img" aria-label={`${score} out of 5 stars`}>
+                      {[1,2,3,4,5].map(i => (
+                        <svg width="18" height="18" viewBox="0 0 24 24"
+                             fill={i <= score ? '#f59e0b' : 'none'}
+                             stroke={i <= score ? '#d97706' : '#d1d5db'}
+                             stroke-width="1.5" aria-hidden="true">
+                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+                        </svg>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <!-- Quick facts -->
         <div class="card">
