@@ -1,0 +1,707 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import {
+  US_STATES, TERRAIN_TYPES, HABITAT_TYPES, SOIL_TYPES,
+  WATER_TYPES, TOPOGRAPHY, ACTIVITIES, DIFFICULTY, SEASONS
+} from '../../../lib/swamp-constants';
+
+export async function getStaticPaths() {
+  const swamps = await getCollection('swamps');
+  return swamps.map(entry => ({
+    params: { slug: entry.id },
+    props:  { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const swamp = entry.data;
+
+// Helper — returns true if value appears in an array
+const has = (arr: readonly string[] | string[], val: string) =>
+  Array.isArray(arr) && arr.includes(val);
+---
+
+<BaseLayout
+  title={`Suggest an Edit — ${swamp.name}`}
+  description={`Suggest corrections or additions to the CoolSwamps entry for ${swamp.name}.`}
+  noIndex={true}
+>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+    <!-- Page header -->
+    <div class="mb-8">
+      <nav class="flex items-center gap-2 text-sm text-swamp-500 mb-4" aria-label="Breadcrumb">
+        <a href="/" class="hover:text-swamp-700">Home</a>
+        <span aria-hidden="true">›</span>
+        <a href={`/swamps/${entry.id}`} class="hover:text-swamp-700">{swamp.name}</a>
+        <span aria-hidden="true">›</span>
+        <span class="text-swamp-800 font-medium">Suggest an Edit</span>
+      </nav>
+
+      <h1 class="text-3xl font-bold text-swamp-900 mb-2">Suggest an Edit</h1>
+      <p class="text-swamp-600 leading-relaxed">
+        Change any fields below and describe what you updated. All suggestions are reviewed
+        before going live — no account required.
+      </p>
+      <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+        <strong>How it works:</strong> Your suggestion opens a GitHub pull request updating
+        the existing entry for <strong>{swamp.name}</strong>. A reviewer will check the
+        changes before merging.
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form id="edit-form" class="space-y-8" novalidate>
+      <!-- Hidden fields -->
+      <input type="hidden" id="csrf-token" name="csrf_token" value="" />
+      <input type="hidden" name="original_slug" value={entry.id} />
+
+      <!-- ── Section 1: What changed ──────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-changes">
+        <div class="card-header">
+          <h2 id="section-changes" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+            What Are You Changing?
+          </h2>
+        </div>
+        <div class="card-body">
+          <label for="edit_notes" class="form-label">
+            Edit Notes <span class="text-red-500" aria-hidden="true">*</span>
+          </label>
+          <textarea id="edit_notes" name="edit_notes" rows="3" required
+                    maxlength="1000" class="form-input resize-y"
+                    placeholder="e.g. Updated access notes — the western trailhead now has a new parking area. Corrected county name."></textarea>
+          <p class="form-hint">Briefly describe what you changed and why. Helps reviewers understand the diff quickly.</p>
+        </div>
+      </section>
+
+      <!-- ── Section 2: Basic Info ─────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-basic">
+        <div class="card-header">
+          <h2 id="section-basic" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+            Basic Information
+          </h2>
+        </div>
+        <div class="card-body space-y-5">
+
+          <div>
+            <label for="name" class="form-label">
+              Swamp Name <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <input type="text" id="name" name="name" required
+                   maxlength="200" autocomplete="off"
+                   class="form-input" value={swamp.name} />
+          </div>
+
+          <div>
+            <label class="form-label" id="status-label">
+              Status <span class="text-red-500" aria-hidden="true">*</span>
+            </label>
+            <div class="flex gap-3 mt-1" role="radiogroup" aria-labelledby="status-label">
+              <label class="flex items-center gap-2 cursor-pointer group">
+                <input type="radio" name="status" value="visited" required
+                       class="w-4 h-4 accent-swamp-600"
+                       checked={swamp.status === 'visited'} />
+                <span class="text-sm font-medium text-swamp-700">✓ I have visited this swamp</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer group">
+                <input type="radio" name="status" value="want-to-visit"
+                       class="w-4 h-4 accent-amber-600"
+                       checked={swamp.status === 'want-to-visit'} />
+                <span class="text-sm font-medium text-swamp-700">★ Want to visit</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label for="description" class="form-label">Description</label>
+            <textarea id="description" name="description" rows="6"
+                      maxlength="5000" class="form-input resize-y">{swamp.description ?? ''}</textarea>
+            <p class="form-hint"><span id="desc-count">{swamp.description?.length ?? 0}</span>/5000 characters</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 3: Location ───────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-location">
+        <div class="card-header">
+          <h2 id="section-location" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+            Location
+          </h2>
+        </div>
+        <div class="card-body space-y-5">
+
+          <!-- Address search -->
+          <div>
+            <label for="address-search" class="form-label">Update via Address Search</label>
+            <div class="flex gap-2">
+              <input type="text" id="address-search" class="form-input flex-1"
+                     placeholder="Search a new location…" autocomplete="off" spellcheck="false" />
+              <button type="button" id="address-search-btn" class="btn-secondary px-4 shrink-0">Find</button>
+            </div>
+            <p id="address-error" class="form-error hidden mt-1"></p>
+            <p class="form-hint">Or click the map to move the pin</p>
+          </div>
+
+          <!-- Map picker -->
+          <div>
+            <div id="location-picker-map" style="height:260px"
+                 class="rounded-lg border border-swamp-200 overflow-hidden"></div>
+            <p id="geo-status" class="form-hint mt-1" aria-live="polite" aria-atomic="true"></p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="lat" class="form-label">Latitude <span class="text-red-500">*</span></label>
+              <input type="number" id="lat" name="lat" required
+                     min="-90" max="90" step="any"
+                     class="form-input font-mono" value={swamp.coordinates.lat} />
+            </div>
+            <div>
+              <label for="lng" class="form-label">Longitude <span class="text-red-500">*</span></label>
+              <input type="number" id="lng" name="lng" required
+                     min="-180" max="180" step="any"
+                     class="form-input font-mono" value={swamp.coordinates.lng} />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="state" class="form-label">State <span class="text-red-500">*</span></label>
+              <select id="state" name="state" required class="form-select">
+                <option value="">Select a state…</option>
+                {US_STATES.map(s => (
+                  <option value={s} selected={s === swamp.state}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label for="county" class="form-label">County <span class="text-red-500">*</span></label>
+              <input type="text" id="county" name="county" required
+                     maxlength="100" class="form-input"
+                     value={swamp.county} />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="area_acres" class="form-label">Area (acres)</label>
+              <input type="number" id="area_acres" name="area_acres"
+                     min="0" step="0.1" class="form-input"
+                     value={swamp.area_acres?.toString() ?? ''} />
+            </div>
+            <div>
+              <label for="elevation_ft" class="form-label">Elevation (ft)</label>
+              <input type="number" id="elevation_ft" name="elevation_ft"
+                     step="1" class="form-input"
+                     value={swamp.elevation_ft?.toString() ?? ''} />
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 4: Terrain & Ecology ─────────────────────────────── -->
+      <section class="card" aria-labelledby="section-terrain">
+        <div class="card-header">
+          <h2 id="section-terrain" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+            Terrain & Ecology
+          </h2>
+        </div>
+        <div class="card-body space-y-6">
+
+          <div>
+            <p class="form-label">Terrain Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {TERRAIN_TYPES.map(t => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="terrain" value={t}
+                         class="w-4 h-4 accent-swamp-600 rounded"
+                         checked={has(swamp.tags?.terrain ?? [], t)} />
+                  <span class="capitalize">{t.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p class="form-label">Habitat Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {HABITAT_TYPES.map(h => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="habitat" value={h}
+                         class="w-4 h-4 accent-swamp-600 rounded"
+                         checked={has(swamp.tags?.habitat ?? [], h)} />
+                  <span class="capitalize">{h.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p class="form-label">Soil Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {SOIL_TYPES.map(s => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="soil" value={s}
+                         class="w-4 h-4 accent-swamp-600 rounded"
+                         checked={has(swamp.tags?.soil ?? [], s)} />
+                  <span class="capitalize">{s.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p class="form-label">Water Type</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {WATER_TYPES.map(w => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="water_type" value={w}
+                         class="w-4 h-4 accent-swamp-600 rounded"
+                         checked={has(swamp.tags?.water_type ?? [], w)} />
+                  <span class="capitalize">{w.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p class="form-label">Topography</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {TOPOGRAPHY.map(t => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="topography" value={t}
+                         class="w-4 h-4 accent-swamp-600 rounded"
+                         checked={has(swamp.tags?.topography ?? [], t)} />
+                  <span class="capitalize">{t.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label for="vegetation" class="form-label">Vegetation / Plant Species</label>
+            <input type="text" id="vegetation" name="vegetation" class="form-input"
+                   value={(swamp.tags?.vegetation ?? []).join(', ')}
+                   placeholder="Common or scientific names, comma-separated" />
+          </div>
+
+          <div>
+            <label for="wildlife_notes" class="form-label">Wildlife & Ecology Notes</label>
+            <textarea id="wildlife_notes" name="wildlife_notes" rows="3"
+                      maxlength="2000" class="form-input resize-y">{swamp.wildlife_notes ?? ''}</textarea>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 5: Activities & Access ───────────────────────────── -->
+      <section class="card" aria-labelledby="section-activities">
+        <div class="card-header">
+          <h2 id="section-activities" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+            Activities & Access
+          </h2>
+        </div>
+        <div class="card-body space-y-5">
+
+          <div>
+            <p class="form-label">Activities</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ACTIVITIES.map(a => (
+                <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700 hover:text-swamp-900">
+                  <input type="checkbox" name="activities" value={a}
+                         class="w-4 h-4 accent-swamp-600 rounded"
+                         checked={has(swamp.tags?.activities ?? [], a)} />
+                  <span class="capitalize">{a.replace(/-/g, ' ')}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="difficulty" class="form-label">Difficulty</label>
+              <select id="difficulty" name="difficulty" class="form-select">
+                <option value="">Not specified</option>
+                {DIFFICULTY.map(d => (
+                  <option value={d} selected={d === swamp.difficulty} class="capitalize">{d}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p class="form-label">Best Season(s)</p>
+              <div class="flex flex-wrap gap-3 mt-1">
+                {SEASONS.map(s => (
+                  <label class="flex items-center gap-2 cursor-pointer text-sm text-swamp-700">
+                    <input type="checkbox" name="best_season" value={s}
+                           class="w-4 h-4 accent-swamp-600 rounded"
+                           checked={has(swamp.best_season ?? [], s)} />
+                    <span class="capitalize">{s}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label for="access_notes" class="form-label">Access & Directions</label>
+            <textarea id="access_notes" name="access_notes" rows="3"
+                      maxlength="2000" class="form-input resize-y">{swamp.access_notes ?? ''}</textarea>
+          </div>
+
+          <div>
+            <label for="historical_notes" class="form-label">Historical Notes</label>
+            <textarea id="historical_notes" name="historical_notes" rows="2"
+                      maxlength="2000" class="form-input resize-y">{swamp.historical_notes ?? ''}</textarea>
+          </div>
+
+          <div>
+            <label for="custom_tags" class="form-label">Custom Tags</label>
+            <input type="text" id="custom_tags" name="custom_tags" class="form-input"
+                   value={(swamp.tags?.custom ?? []).join(', ')}
+                   placeholder="Comma-separated" />
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Section 6: Ratings ─────────────────────────────────────────── -->
+      <section class="card" aria-labelledby="section-ratings">
+        <div class="card-header">
+          <h2 id="section-ratings" class="text-base font-semibold text-swamp-900 flex items-center gap-2">
+            <span class="w-6 h-6 bg-swamp-700 text-white rounded-full flex items-center justify-center text-xs font-bold">6</span>
+            Ratings
+          </h2>
+        </div>
+        <div class="card-body space-y-6">
+          <p class="text-sm text-swamp-600">Click a star to update a rating. Click it again to clear it.</p>
+
+          <div>
+            <input type="hidden" name="rating_novelty" id="rating_novelty"
+                   value={swamp.ratings?.novelty?.toString() ?? ''} />
+            <div class="flex items-baseline justify-between mb-0.5">
+              <label class="form-label mb-0">Novelty / Uniqueness</label>
+              <span id="display_novelty" class="text-xs text-swamp-400">
+                {swamp.ratings?.novelty ? `${swamp.ratings.novelty} / 5` : 'Not rated'}
+              </span>
+            </div>
+            <p class="form-hint mb-2">How rare or distinctive is this wetland?</p>
+            <div class="star-picker flex gap-1"
+                 data-input="rating_novelty"
+                 data-display="display_novelty"
+                 data-initial={swamp.ratings?.novelty?.toString() ?? ''}
+                 role="group" aria-label="Rate novelty and uniqueness"></div>
+          </div>
+
+          <div>
+            <input type="hidden" name="rating_accessibility" id="rating_accessibility"
+                   value={swamp.ratings?.accessibility?.toString() ?? ''} />
+            <div class="flex items-baseline justify-between mb-0.5">
+              <label class="form-label mb-0">Social Setting Quality</label>
+              <span id="display_accessibility" class="text-xs text-swamp-400">
+                {swamp.ratings?.accessibility ? `${swamp.ratings.accessibility} / 5` : 'Not rated'}
+              </span>
+            </div>
+            <p class="form-hint mb-2">How easy is it for most people to access and enjoy?</p>
+            <div class="star-picker flex gap-1"
+                 data-input="rating_accessibility"
+                 data-display="display_accessibility"
+                 data-initial={swamp.ratings?.accessibility?.toString() ?? ''}
+                 role="group" aria-label="Rate social setting quality"></div>
+          </div>
+
+          <div>
+            <input type="hidden" name="rating_habitat" id="rating_habitat"
+                   value={swamp.ratings?.habitat?.toString() ?? ''} />
+            <div class="flex items-baseline justify-between mb-0.5">
+              <label class="form-label mb-0">Habitat Quality</label>
+              <span id="display_habitat" class="text-xs text-swamp-400">
+                {swamp.ratings?.habitat ? `${swamp.ratings.habitat} / 5` : 'Not rated'}
+              </span>
+            </div>
+            <p class="form-hint mb-2">How healthy and ecologically diverse is the ecosystem?</p>
+            <div class="star-picker flex gap-1"
+                 data-input="rating_habitat"
+                 data-display="display_habitat"
+                 data-initial={swamp.ratings?.habitat?.toString() ?? ''}
+                 role="group" aria-label="Rate habitat quality"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Submit ────────────────────────────────────────────────────── -->
+      <div class="flex flex-col sm:flex-row items-center gap-4 pt-2">
+        <button type="submit" id="submit-btn"
+                class="btn-primary w-full sm:w-auto px-8 py-3 text-base">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
+          </svg>
+          Submit for Review
+        </button>
+        <a href={`/swamps/${entry.id}`}
+           class="text-sm text-swamp-500 hover:text-swamp-700 hover:underline">
+          Cancel — back to {swamp.name}
+        </a>
+      </div>
+
+      <div id="form-success" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+        <p class="font-semibold">✓ Edit suggestion submitted!</p>
+        <p class="text-sm mt-1">Thank you — a reviewer will check your changes before they go live.</p>
+      </div>
+      <div id="form-error-msg" class="hidden p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+        <p class="font-semibold">Submission failed</p>
+        <p id="form-error-detail" class="text-sm mt-1"></p>
+      </div>
+
+    </form>
+  </div>
+</BaseLayout>
+
+<script>
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// ─── CSRF token ───────────────────────────────────────────────────────────────
+const csrfToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+  .map(b => b.toString(16).padStart(2, '0')).join('');
+(document.getElementById('csrf-token') as HTMLInputElement).value = csrfToken;
+sessionStorage.setItem('csrf_token', csrfToken);
+
+// ─── Char counter ─────────────────────────────────────────────────────────────
+const desc    = document.getElementById('description') as HTMLTextAreaElement;
+const counter = document.getElementById('desc-count')!;
+desc.addEventListener('input', () => { counter.textContent = String(desc.value.length); });
+
+// ─── Location picker map ──────────────────────────────────────────────────────
+const latInput    = document.getElementById('lat')    as HTMLInputElement;
+const lngInput    = document.getElementById('lng')    as HTMLInputElement;
+const stateSelect = document.getElementById('state')  as HTMLSelectElement;
+const countyInput = document.getElementById('county') as HTMLInputElement;
+const geoStatus   = document.getElementById('geo-status')!;
+
+const initLat = parseFloat(latInput.value);
+const initLng = parseFloat(lngInput.value);
+
+const pickerMap = L.map('location-picker-map', {
+  center: [isNaN(initLat) ? 38 : initLat, isNaN(initLng) ? -96 : initLng],
+  zoom:   isNaN(initLat) ? 4 : 10,
+});
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 18,
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(pickerMap);
+
+const waypointIcon = L.divIcon({
+  className: '',
+  html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
+    <path d="M16 0C7.163 0 0 7.163 0 16c0 10 16 24 16 24S32 26 32 16C32 7.163 24.837 0 16 0z"
+          fill="#0d9488" stroke="#0f766e" stroke-width="1.5"/>
+    <circle cx="16" cy="16" r="6" fill="#ffffff"/>
+  </svg>`,
+  iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -40],
+});
+
+// Place initial marker at existing coordinates
+let pickerMarker: L.Marker | null = null;
+if (!isNaN(initLat) && !isNaN(initLng)) {
+  pickerMarker = L.marker([initLat, initLng], { icon: waypointIcon }).addTo(pickerMap);
+}
+
+async function reverseGeocode(lat: number, lng: number) {
+  geoStatus.textContent = '⟳ Detecting location…';
+  try {
+    const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`);
+    if (!res.ok) { geoStatus.textContent = ''; return; }
+    const data = await res.json();
+    const addr = data.address ?? {};
+    const rawCounty = addr.county ?? addr.municipality ?? addr.city_district ?? '';
+    const county = rawCounty.replace(/\s+county$/i, '').trim();
+    if (county) countyInput.value = county;
+    if (addr.state) {
+      const opt = Array.from(stateSelect.options).find(
+        o => o.value.toLowerCase() === addr.state.toLowerCase()
+      );
+      if (opt) stateSelect.value = opt.value;
+    }
+    geoStatus.textContent = county ? '✓ County and state updated.' : '';
+  } catch {
+    geoStatus.textContent = '';
+  }
+}
+
+function setCoords(lat: number, lng: number, zoom?: number) {
+  latInput.value = lat.toFixed(6);
+  lngInput.value = lng.toFixed(6);
+  const ll: [number, number] = [lat, lng];
+  if (pickerMarker) pickerMarker.setLatLng(ll);
+  else pickerMarker = L.marker(ll, { icon: waypointIcon }).addTo(pickerMap);
+  if (zoom !== undefined) pickerMap.setView(ll, zoom);
+  else pickerMap.panTo(ll);
+  reverseGeocode(lat, lng);
+}
+
+pickerMap.on('click', (e: L.LeafletMouseEvent) => setCoords(e.latlng.lat, e.latlng.lng));
+
+function syncMarkerFromInputs() {
+  const lat = parseFloat(latInput.value);
+  const lng = parseFloat(lngInput.value);
+  if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+    setCoords(lat, lng, 10);
+  }
+}
+latInput.addEventListener('change', syncMarkerFromInputs);
+lngInput.addEventListener('change', syncMarkerFromInputs);
+
+// ─── Address search ────────────────────────────────────────────────────────────
+const addressInput = document.getElementById('address-search') as HTMLInputElement;
+const addressBtn   = document.getElementById('address-search-btn') as HTMLButtonElement;
+const addressError = document.getElementById('address-error')!;
+
+async function searchAddress() {
+  const q = addressInput.value.trim();
+  if (!q) return;
+  addressBtn.disabled = true;
+  addressBtn.textContent = '…';
+  addressError.classList.add('hidden');
+  try {
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+    const results: any[] = await res.json();
+    if (!results.length) {
+      addressError.textContent = 'No results found.';
+      addressError.classList.remove('hidden');
+      return;
+    }
+    const r = results[0];
+    const addr = r.address ?? {};
+    setCoords(parseFloat(r.lat), parseFloat(r.lon), 12);
+    const county = (addr.county ?? addr.municipality ?? '').replace(/\s+county$/i, '').trim();
+    if (county) countyInput.value = county;
+    if (addr.state) {
+      const opt = Array.from(stateSelect.options).find(
+        o => o.value.toLowerCase() === addr.state.toLowerCase()
+      );
+      if (opt) stateSelect.value = opt.value;
+    }
+  } catch {
+    addressError.textContent = 'Search failed. Enter coordinates manually.';
+    addressError.classList.remove('hidden');
+  } finally {
+    addressBtn.disabled = false;
+    addressBtn.textContent = 'Find';
+  }
+}
+addressBtn.addEventListener('click', searchAddress);
+addressInput.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Enter') { e.preventDefault(); searchAddress(); }
+});
+
+// ─── Star rating pickers (with pre-filled initial values) ─────────────────────
+const LABELS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Exceptional'];
+
+document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
+  const inputId   = container.dataset.input!;
+  const displayId = container.dataset.display!;
+  const initial   = parseInt(container.dataset.initial ?? '0', 10);
+  const input     = document.getElementById(inputId)   as HTMLInputElement;
+  const display   = document.getElementById(displayId)!;
+  let current     = isNaN(initial) ? 0 : initial;
+
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', `${i} — ${LABELS[i]}`);
+    btn.setAttribute('aria-pressed', String(i <= current));
+    btn.dataset.val = String(i);
+    btn.style.cssText = 'font-size:2rem;line-height:1;border:none;background:none;cursor:pointer;padding:2px 3px;color:#d1d5db;transition:color 0.08s,transform 0.08s';
+    btn.textContent = '★';
+    btn.addEventListener('mouseenter', () => paint(i));
+    btn.addEventListener('mouseleave', () => paint(current));
+    btn.addEventListener('click', () => {
+      current = current === i ? 0 : i;
+      input.value = current ? String(current) : '';
+      display.textContent = current ? `${current} / 5 — ${LABELS[current]}` : 'Not rated';
+      paint(current);
+      container.querySelectorAll('button').forEach((b, idx) => {
+        b.setAttribute('aria-pressed', String(idx < current));
+      });
+    });
+    container.appendChild(btn);
+  }
+
+  function paint(n: number) {
+    container.querySelectorAll<HTMLElement>('button').forEach((b, idx) => {
+      b.style.color     = idx < n ? '#f59e0b' : '#d1d5db';
+      b.style.transform = idx < n ? 'scale(1.1)' : 'scale(1)';
+    });
+  }
+
+  // Initialise display from existing value
+  paint(current);
+  if (current > 0) display.textContent = `${current} / 5 — ${LABELS[current]}`;
+});
+
+// ─── Form submission ──────────────────────────────────────────────────────────
+const form           = document.getElementById('edit-form')       as HTMLFormElement;
+const submitBtn      = document.getElementById('submit-btn')      as HTMLButtonElement;
+const formSuccess    = document.getElementById('form-success')!;
+const formErrorMsg   = document.getElementById('form-error-msg')!;
+const formErrorDetail = document.getElementById('form-error-detail')!;
+
+form.addEventListener('submit', async (e: Event) => {
+  e.preventDefault();
+
+  const editNotes = (document.getElementById('edit_notes') as HTMLTextAreaElement).value.trim();
+  const nameVal   = (document.getElementById('name')       as HTMLInputElement).value.trim();
+  const latVal    = parseFloat((document.getElementById('lat') as HTMLInputElement).value);
+  const lngVal    = parseFloat((document.getElementById('lng') as HTMLInputElement).value);
+  const stateVal  = (document.getElementById('state')  as HTMLSelectElement).value;
+  const countyVal = (document.getElementById('county') as HTMLInputElement).value.trim();
+
+  if (!editNotes) { alert('Please describe what you changed in the Edit Notes field.'); return; }
+  if (!nameVal)   { alert('Swamp name is required.'); return; }
+  if (!stateVal)  { alert('Please select a state.'); return; }
+  if (!countyVal) { alert('County is required.'); return; }
+  if (isNaN(latVal) || latVal < -90  || latVal > 90)  { alert('Invalid latitude.'); return; }
+  if (isNaN(lngVal) || lngVal < -180 || lngVal > 180) { alert('Invalid longitude.'); return; }
+
+  submitBtn.disabled    = true;
+  submitBtn.textContent = 'Submitting…';
+
+  try {
+    const fd = new FormData(form);
+    const res = await fetch('/api/suggest-edit', {
+      method:  'POST',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body:    fd,
+    });
+
+    if (res.ok) {
+      formSuccess.classList.remove('hidden');
+      formErrorMsg.classList.add('hidden');
+      submitBtn.disabled = true;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      formErrorDetail.textContent = data.error ?? 'An unexpected error occurred.';
+      formErrorMsg.classList.remove('hidden');
+    }
+  } catch {
+    formErrorDetail.textContent = 'Network error. Please try again.';
+    formErrorMsg.classList.remove('hidden');
+  } finally {
+    if (submitBtn.disabled && !formSuccess.classList.contains('hidden')) return;
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
+      </svg> Submit for Review`;
+  }
+});
+</script>
