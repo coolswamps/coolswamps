@@ -794,17 +794,17 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
 
   // ─── Client-side image compression ────────────────────────────────────
   /**
-   * Resize and re-encode an image using the Canvas API before upload.
-   * Caps the longest side at 1920 px and exports as JPEG at 78% quality,
-   * keeping typical phone photos under ~400 KB. Canvas export also strips
-   * all EXIF metadata at the browser level (pixel data only — no GPS, no
-   * device info), complementing the server-side sharp strip.
-   * Vercel serverless functions cap request bodies at 4.5 MB on Hobby;
-   * compressing to ~400 KB per photo keeps 10 photos well within that limit.
+   * Resize and re-encode one image using the Canvas API.
+   * targetBytes is a per-photo size budget derived from the total number of
+   * photos being uploaded (see the submit handler below). If the first quality
+   * pass produces a file over budget, progressively lower quality steps are
+   * tried until the file fits or we reach the minimum quality floor.
+   * Canvas export strips all EXIF at the browser level (pixel data only).
    */
-  async function compressImage(file: File): Promise<File> {
-    const MAX_SIDE = 1920;
-    const QUALITY  = 0.78;
+  async function compressImage(file: File, targetBytes: number): Promise<File> {
+    const MAX_SIDE  = 1280; // web quality sufficient for wetland reference photos
+    const QUALITIES = [0.85, 0.72, 0.58, 0.44, 0.30]; // try each until under budget
+
     return new Promise((resolve) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -816,15 +816,23 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
         canvas.width  = Math.round(w * scale);
         canvas.height = Math.round(h * scale);
         canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob(
-          (blob) => resolve(new File(
-            [blob ?? new Blob()],
-            file.name.replace(/\.[^.]+$/, '.jpg'),
-            { type: 'image/jpeg', lastModified: Date.now() },
-          )),
-          'image/jpeg',
-          QUALITY,
-        );
+
+        function tryQuality(qi: number) {
+          canvas.toBlob((blob) => {
+            if (!blob) { resolve(file); return; }
+            // Accept if under budget OR if we have exhausted all quality steps
+            if (blob.size <= targetBytes || qi >= QUALITIES.length - 1) {
+              resolve(new File(
+                [blob],
+                file.name.replace(/\.[^.]+$/, '.jpg'),
+                { type: 'image/jpeg', lastModified: Date.now() },
+              ));
+            } else {
+              tryQuality(qi + 1);
+            }
+          }, 'image/jpeg', QUALITIES[qi]);
+        }
+        tryQuality(0);
       };
       img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
       img.src = url;
@@ -858,10 +866,42 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
 
     // Disable submit button before async work to prevent double-submit
     submitBtn.disabled = true;
-    submitBtn.textContent = selectedFiles.length > 0 ? 'Compressing photos…' : 'Submitting…';
 
-    // Compress photos client-side before upload (see compressImage above)
-    const compressed = await Promise.all(selectedFiles.map(compressImage));
+    // ── Compress photos to fit within Vercel's 4.5 MB serverless payload limit ──
+    // Budget: 3.8 MB total for photos (leaves ~700 KB for form fields + multipart
+    // overhead + headroom). Divide equally across however many photos are selected
+    // so that a single photo gets generous quality while 10 photos each get tighter
+    // budgets. Each photo is tried at progressively lower quality until it fits.
+    const PAYLOAD_BUDGET  = 3_800_000; // bytes available for photo data
+    const FORM_OVERHEAD   = 60_000;    // estimated bytes for all non-photo form fields
+    const perPhotoTarget  = selectedFiles.length > 0
+      ? Math.floor((PAYLOAD_BUDGET - FORM_OVERHEAD) / selectedFiles.length)
+      : PAYLOAD_BUDGET;
+
+    if (selectedFiles.length > 0) {
+      submitBtn.textContent = `Compressing ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}…`;
+    } else {
+      submitBtn.textContent = 'Submitting…';
+    }
+
+    const compressed = await Promise.all(
+      selectedFiles.map(f => compressImage(f, perPhotoTarget))
+    );
+
+    // Safety guard — verify total before sending (edge case: extremely complex images)
+    const totalCompressedBytes = compressed.reduce((sum, f) => sum + f.size, 0);
+    if (totalCompressedBytes > PAYLOAD_BUDGET) {
+      const totalMB = (totalCompressedBytes / 1_048_576).toFixed(1);
+      formErrorDetail.textContent =
+        `Photos are still too large after compression (${totalMB} MB). ` +
+        `Please select fewer photos or use a different set.`;
+      formErrorMsg.classList.remove('hidden');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
+        </svg> Submit for Review`;
+      return;
+    }
 
     submitBtn.textContent = 'Submitting…';
 
