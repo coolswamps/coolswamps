@@ -745,16 +745,18 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
       const url = URL.createObjectURL(file);
       const div = document.createElement('div');
       div.className = 'relative rounded-lg overflow-hidden aspect-square bg-swamp-100';
+      // Build the static markup with innerHTML, then set file.name via
+      // textContent so a filename containing HTML cannot inject script.
       div.innerHTML = `
-        <img src="${url}" alt="Preview ${i + 1}" class="w-full h-full object-cover" />
+        <img alt="Preview ${i + 1}" class="w-full h-full object-cover" />
         <button type="button" data-index="${i}"
           class="absolute top-1 right-1 w-6 h-6 bg-black/60 hover:bg-black/80 text-white
                  rounded-full flex items-center justify-center text-xs font-bold transition-colors"
           aria-label="Remove photo ${i + 1}">✕</button>
-        <p class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1.5 py-0.5 truncate">
-          ${file.name}
-        </p>
+        <p class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-1.5 py-0.5 truncate"></p>
       `;
+      (div.querySelector('img') as HTMLImageElement).src = url;
+      (div.querySelector('p') as HTMLParagraphElement).textContent = file.name;
       div.querySelector('button')?.addEventListener('click', () => {
         selectedFiles.splice(i, 1);
         renderPreviews(selectedFiles);

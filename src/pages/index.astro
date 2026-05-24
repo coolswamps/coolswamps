@@ -6,7 +6,13 @@ import Map from '../components/Map.astro';
 
 const swamps = await getCollection('swamps');
 const swampsData = swamps.map(s => ({ slug: s.id, ...s.data }));
-const swampsJSON = JSON.stringify(swampsData);
+// Unicode-escape <, >, / so a swamp name/description containing </script>
+// can't break out of the <script type="application/json"> block. The HTML
+// parser closes ANY <script> tag on </script> regardless of the type attr.
+const swampsJSON = JSON.stringify(swampsData)
+  .replace(/</g, '\\u003c')
+  .replace(/>/g, '\\u003e')
+  .replace(/\//g, '\\u002f');
 
 const totalCount   = swamps.length;
 const visitedCount = swamps.filter(s => s.data.status === 'visited').length;

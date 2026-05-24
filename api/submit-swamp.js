@@ -79,6 +79,35 @@ function filterEnum(values, validSet) {
   return values.filter(v => typeof v === 'string' && validSet.has(v));
 }
 
+/**
+ * Escape Markdown special characters and zero-width / bidi tricks before
+ * interpolating user input into a PR body. Prevents a submitter from injecting
+ * fake "review complete" checklists, fake section headers, or table-breaking
+ * pipes that mislead reviewers into approving a malicious entry.
+ */
+const INVISIBLE_RE = /[​-‏‪-‮⁦-⁩﻿]/g;
+function escapeMd(val) {
+  if (val === undefined || val === null) return '';
+  return String(val)
+    // Drop zero-width and bidi-override characters that can hide text
+    .replace(INVISIBLE_RE, '')
+    // Backslash-escape Markdown structural characters
+    .replace(/([\\`*_{}\[\]()#+\-!|>~])/g, '\\$1')
+    // Collapse newlines so injected content cannot start new blocks
+    .replace(/\r?\n/g, ' ');
+}
+
+/** Like escapeMd but keeps newlines (paragraph fields). Still escapes line-
+ *  leading characters so headings/checklists/blockquotes/tables cannot start. */
+function escapeMdBlock(val) {
+  if (val === undefined || val === null) return '';
+  return String(val)
+    .replace(INVISIBLE_RE, '')
+    .split(/\r?\n/)
+    .map(line => line.replace(/^([ \t]*)([#>\-+*]|\d+\.|\[)/, '$1\\$2'))
+    .join('\n');
+}
+
 /** Check image magic bytes */
 function isValidImageBuffer(buf, mimeType) {
   const bytes = new Uint8Array(buf);
@@ -464,6 +493,12 @@ export default async function handler(req, res) {
     const mapLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=14`;
     const gbifLink = `https://www.gbif.org/occurrence/map?decimalLatitude=${(lat-0.1).toFixed(3)},${(lat+0.1).toFixed(3)}&decimalLongitude=${(lng-0.1).toFixed(3)},${(lng+0.1).toFixed(3)}`;
 
+    // User-submitted values are escaped (escapeMd / escapeMdBlock) before
+    // interpolation into the PR body so a submitter cannot inject fake
+    // pre-checked review checklists, fake headings, or table-breaking pipes
+    // to mislead the reviewer. Enum/validated fields (status, terrain, etc.)
+    // are already constrained to safe character sets — but we still wrap them
+    // in escapeMd for defense in depth.
     const prBody = [
       `## New Swamp Submission`,
       ``,
@@ -471,15 +506,15 @@ export default async function handler(req, res) {
       ``,
       `| Field | Value |`,
       `|-------|-------|`,
-      `| **Name** | ${name} |`,
-      `| **Status** | ${status} |`,
-      `| **State** | ${state} |`,
-      `| **County** | ${county} County |`,
+      `| **Name** | ${escapeMd(name)} |`,
+      `| **Status** | ${escapeMd(status)} |`,
+      `| **State** | ${escapeMd(state)} |`,
+      `| **County** | ${escapeMd(county)} County |`,
       `| **Coordinates** | ${lat.toFixed(6)}, ${lng.toFixed(6)} |`,
-      `| **Terrain** | ${terrain.join(', ') || '—'} |`,
-      `| **Activities** | ${activities.join(', ') || '—'} |`,
-      `| **Difficulty** | ${difficulty || '—'} |`,
-      `| **Best Season** | ${best_season.join(', ') || '—'} |`,
+      `| **Terrain** | ${escapeMd(terrain.join(', ')) || '—'} |`,
+      `| **Activities** | ${escapeMd(activities.join(', ')) || '—'} |`,
+      `| **Difficulty** | ${escapeMd(difficulty) || '—'} |`,
+      `| **Best Season** | ${escapeMd(best_season.join(', ')) || '—'} |`,
       `| **Area** | ${area_acres ? `${area_acres.toLocaleString()} acres` : '—'} |`,
       `| **Ratings** | Novelty: ${ratingNovelty ?? '—'} · Accessibility: ${ratingAccessibility ?? '—'} · Habitat: ${ratingHabitat ?? '—'} |`,
       `| **Photos** | ${processedPhotos.length} uploaded (EXIF fully stripped) |`,
@@ -487,10 +522,10 @@ export default async function handler(req, res) {
       `**[📍 Verify map pin location](${mapLink})**`,
       `**[🌿 View nearby GBIF species](${gbifLink})**`,
       ``,
-      description ? `### Description\n${description}` : `### Description\n_No description provided._`,
+      description ? `### Description\n${escapeMdBlock(description)}` : `### Description\n_No description provided._`,
       ``,
-      access_notes   ? `### Access Notes\n${access_notes}`   : '',
-      wildlife_notes ? `### Wildlife Notes\n${wildlife_notes}` : '',
+      access_notes   ? `### Access Notes\n${escapeMdBlock(access_notes)}`   : '',
+      wildlife_notes ? `### Wildlife Notes\n${escapeMdBlock(wildlife_notes)}` : '',
       ``,
       `### Review checklist`,
       `- [ ] Swamp name is real and correctly spelled`,

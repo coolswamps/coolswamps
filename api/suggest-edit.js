@@ -98,6 +98,32 @@ function parseRating(val) {
   return Number.isInteger(n) && n >= 1 && n <= 5 ? n : undefined;
 }
 
+/**
+ * Escape Markdown special characters and zero-width / bidi tricks before
+ * interpolating user input into a PR body. Prevents a submitter from injecting
+ * fake "review complete" checklists, fake section headers, or table-breaking
+ * pipes that mislead reviewers into approving a malicious edit.
+ */
+const INVISIBLE_RE = /[​-‏‪-‮⁦-⁩﻿]/g;
+function escapeMd(val) {
+  if (val === undefined || val === null) return '';
+  return String(val)
+    .replace(INVISIBLE_RE, '')
+    .replace(/([\\`*_{}\[\]()#+\-!|>~])/g, '\\$1')
+    .replace(/\r?\n/g, ' ');
+}
+
+/** Like escapeMd but keeps newlines (paragraph fields). Still escapes line-
+ *  leading characters so headings/checklists/blockquotes/tables cannot start. */
+function escapeMdBlock(val) {
+  if (val === undefined || val === null) return '';
+  return String(val)
+    .replace(INVISIBLE_RE, '')
+    .split(/\r?\n/)
+    .map(line => line.replace(/^([ \t]*)([#>\-+*]|\d+\.|\[)/, '$1\\$2'))
+    .join('\n');
+}
+
 /** GitHub API helper */
 async function githubFetch(path, options = {}) {
   const res = await fetch(`https://api.github.com${path}`, {
@@ -137,15 +163,21 @@ function checkRateLimit(ip) {
  * Returns a markdown table row string, or null when the values are identical.
  */
 function diffRow(label, oldVal, newVal) {
-  const fmt = (v) => {
+  // Compare raw values first so we don't emit a row for identical content
+  const fmtRaw = (v) => {
     if (v === undefined || v === null || v === '') return '_empty_';
     if (Array.isArray(v)) return v.length ? v.join(', ') : '_empty_';
     return String(v);
   };
-  const o = fmt(oldVal);
-  const n = fmt(newVal);
-  if (o === n) return null;
-  return `| **${label}** | ${o} | ${n} |`;
+  if (fmtRaw(oldVal) === fmtRaw(newVal)) return null;
+  // Then escape for display — prevents injected pipes / newlines from
+  // breaking the table layout or adding misleading rows.
+  const fmtCell = (v) => {
+    if (v === undefined || v === null || v === '') return '_empty_';
+    if (Array.isArray(v)) return v.length ? escapeMd(v.join(', ')) : '_empty_';
+    return escapeMd(v);
+  };
+  return `| **${label}** | ${fmtCell(oldVal)} | ${fmtCell(newVal)} |`;
 }
 
 // ── Main handler ───────────────────────────────────────────────────────────────
@@ -508,8 +540,11 @@ export default async function handler(req, res) {
         ].join('\n')
       : `### No field values changed\n_Only metadata fields (last_updated, verified) were updated._`;
 
+    // User-submitted name and editNotes are escaped before interpolation
+    // so a submitter cannot inject fake pre-checked review checklists or
+    // misleading headings that trick reviewers into approving a bad edit.
     const prBody = [
-      `## Edit Suggestion: ${name}`,
+      `## Edit Suggestion: ${escapeMd(name)}`,
       ``,
       `> **Merging this PR will automatically update the live entry.** Vercel rebuilds on merge — no other steps required.`,
       ``,
@@ -517,7 +552,7 @@ export default async function handler(req, res) {
       ``,
       `### Submitter's notes`,
       ``,
-      editNotes,
+      escapeMdBlock(editNotes),
       ``,
       diffSection,
       ``,
