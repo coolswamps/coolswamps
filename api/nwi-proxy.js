@@ -49,12 +49,22 @@ export default async function handler(req, res) {
       },
     });
 
-    const contentType = upstream.headers.get('content-type') ?? 'image/png';
+    // Validate upstream Content-Type — this proxy must only serve images.
+    // If the FWS server ever returns text/html (compromise, MITM, error page,
+    // misconfiguration), echoing that type back would let the response be
+    // parsed as HTML on the coolswamps.com origin and turn a third-party
+    // server into stored XSS on our domain.
+    const upstreamType = upstream.headers.get('content-type') ?? '';
+    if (!/^image\//i.test(upstreamType)) {
+      res.status(502).end();
+      return;
+    }
     const buf = Buffer.from(await upstream.arrayBuffer());
 
     res
       .status(upstream.status)
-      .setHeader('Content-Type', contentType)
+      .setHeader('Content-Type', upstreamType)
+      .setHeader('X-Content-Type-Options', 'nosniff')
       .setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=3600')
       .end(buf);
   } catch {

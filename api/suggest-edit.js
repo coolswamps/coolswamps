@@ -351,10 +351,14 @@ export default async function handler(req, res) {
       console.warn('Invalid image magic bytes, skipping');
       continue;
     }
+    // Cap input pixels (~24 MP) and output dimensions (2400x2400) to bound
+    // memory; default sharp limitInputPixels of ~268 MP can decode to ~1 GB
+    // of raw RGBA and OOM the function under a coordinated upload.
     let cleanBuf;
     try {
-      cleanBuf = await sharp(buf)
+      cleanBuf = await sharp(buf, { limitInputPixels: 24_000_000, failOn: 'error' })
         .rotate()
+        .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85, mozjpeg: true })
         .toBuffer();
     } catch (err) {

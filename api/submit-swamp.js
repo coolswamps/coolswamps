@@ -155,7 +155,9 @@ async function githubFetch(path, options = {}) {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(`GitHub API ${path}: ${res.status} ${body.message ?? ''}`);
+    const err = new Error(`GitHub API ${path}: ${res.status} ${body.message ?? ''}`);
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 }
@@ -329,10 +331,18 @@ export default async function handler(req, res) {
     // would copy EXIF from the input, which is the opposite of what we want.
     // .rotate() uses the EXIF orientation tag to auto-correct rotation, then the
     // tag (and all other EXIF) is dropped because we do not call .withMetadata().
+    //
+    // Cap input pixels and output dimensions to bound memory:
+    //   - limitInputPixels: rejects decoded images larger than ~24 MP. Sharp's
+    //     default is ~268 MP, which can decode to ~1 GB of raw RGBA — enough
+    //     to OOM the function under a coordinated upload of 10 photos.
+    //   - resize 2400x2400 fit:inside: caps output at a typical web-photo
+    //     size, drops re-encode memory + final blob size.
     let cleanBuf;
     try {
-      cleanBuf = await sharp(buf)
+      cleanBuf = await sharp(buf, { limitInputPixels: 24_000_000, failOn: 'error' })
         .rotate()          // auto-rotate from EXIF orientation flag
+        .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85, mozjpeg: true })
         .toBuffer();
     } catch (err) {
@@ -357,11 +367,33 @@ export default async function handler(req, res) {
 
   // ── 6. Build swamp JSON ───────────────────────────────────────────────
   // Use Date.now() as a submission ID — guarantees branch name uniqueness even
-  // under concurrent submissions of the same swamp name (mirrors republican-business-map).
+  // under concurrent submissions of the same swamp name.
   // The file slug stays human-readable for clean URLs; only the branch gets the timestamp prefix.
   const submissionId = Date.now().toString();
   const slug  = makeSlug(name);
   const today = new Date().toISOString().split('T')[0];
+
+  // Reject if the slug collides with an existing swamp. Without this check, a
+  // submitter could overwrite a curated entry by choosing a name that
+  // slugifies to an already-taken slug ("Great-Dismal-Swamp", "  great dismal
+  // swamp  ", "GREAT DISMAL SWAMP!" all collapse to great-dismal-swamp). The
+  // Git Tree API would silently REPLACE the existing file at that path on
+  // merge, so a rubber-stamped PR could destroy a real entry. Edits belong on
+  // the /api/suggest-edit path instead, which is gated to existing slugs.
+  try {
+    await githubFetch(
+      `/repos/${REPO_OWNER}/${REPO_NAME}/contents/src/content/swamps/${slug}.json`
+    );
+    return res.status(409).json({
+      error: 'A swamp with this name already exists. Use the “Suggest an edit” link on that entry instead.',
+    });
+  } catch (err) {
+    if (err.status !== 404) {
+      console.error('Slug collision check failed:', err);
+      return res.status(503).json({ error: 'Could not verify swamp uniqueness. Try again shortly.' });
+    }
+    // 404 = file doesn't exist, slug is free — proceed.
+  }
 
   const swampData = {
     name,
