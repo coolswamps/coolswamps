@@ -15,24 +15,6 @@ const REPO_NAME       = process.env.GITHUB_REPO_NAME  ?? 'coolswamps';
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME    = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-// Hard cap matching the per-submission photo limit — prevents uploading more
-// blobs than can ever appear in a single PR regardless of client behaviour.
-const RATE_LIMIT_MAX = 10;
-
-/** @type {Map<string, {count: number, resetAt: number}>} */
-const rateLimitMap = new Map();
-
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + 3_600_000 });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT_MAX) return false;
-  entry.count++;
-  return true;
-}
 
 function isValidImageBuffer(buf, mimeType) {
   const bytes = new Uint8Array(buf);
@@ -83,16 +65,6 @@ export default async function handler(req, res) {
   }
 
   if (!GITHUB_PAT) return res.status(500).json({ error: 'Server configuration error' });
-
-  const clientIp =
-    req.headers['x-real-ip'] ||
-    (req.headers['x-forwarded-for'] ?? '').split(',').at(-1)?.trim() ||
-    req.socket?.remoteAddress ||
-    'unknown';
-
-  if (!checkRateLimit(clientIp)) {
-    return res.status(429).json({ error: 'Too many uploads. Please wait before trying again.' });
-  }
 
   // Parse single photo
   let photoFiles;
