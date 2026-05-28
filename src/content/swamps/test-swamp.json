@@ -1,0 +1,53 @@
+{
+  "name": "Test swamp",
+  "status": "visited",
+  "coordinates": {
+    "lat": 31.977018,
+    "lng": -99.671117
+  },
+  "state": "Colorado",
+  "county": "Test",
+  "country": "USA",
+  "tags": {
+    "terrain": [],
+    "habitat": [],
+    "soil": [],
+    "water_type": [],
+    "topography": [],
+    "activities": [],
+    "vegetation": [],
+    "custom": []
+  },
+  "photos": [
+    {
+      "filename": "7dd8738c404efe66.jpg"
+    },
+    {
+      "filename": "1cbda3616febbff6.jpg"
+    },
+    {
+      "filename": "cd9224b3ee5efb01.jpg"
+    },
+    {
+      "filename": "e1f5b4d9001a2e30.jpg"
+    },
+    {
+      "filename": "626ff51f7ad931b1.jpg"
+    },
+    {
+      "filename": "a435174b5919d0b4.jpg"
+    },
+    {
+      "filename": "628dc12023b0d61a.jpg"
+    },
+    {
+      "filename": "de994a72ccb26f7c.jpg"
+    },
+    {
+      "filename": "93fb15e76c92f2c7.jpg"
+    }
+  ],
+  "submitted_date": "2026-05-28",
+  "last_updated": "2026-05-28",
+  "verified": false
+}
