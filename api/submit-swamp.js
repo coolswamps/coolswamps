@@ -33,12 +33,8 @@ const BASE_BRANCH      = 'main';
 /** @type {Map<string, {count: number, resetAt: number}>} */
 const rateLimitMap = new Map();
 
-// Allowed MIME types
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
-
-// Max sizes
-const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10 MB
-const MAX_PHOTOS      = 10;
+// Max photos per submission
+const MAX_PHOTOS = 10;
 const MAX_TEXT_LEN    = 5000;
 
 // Valid enum values (mirror of content/config.ts)
@@ -106,23 +102,6 @@ function escapeMdBlock(val) {
     .split(/\r?\n/)
     .map(line => line.replace(/^([ \t]*)([#>\-+*]|\d+\.|\[)/, '$1\\$2'))
     .join('\n');
-}
-
-/** Check image magic bytes */
-function isValidImageBuffer(buf, mimeType) {
-  const bytes = new Uint8Array(buf);
-  if (mimeType === 'image/jpeg') {
-    return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
-  }
-  if (mimeType === 'image/png') {
-    return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
-  }
-  if (mimeType === 'image/webp') {
-    const dec = new TextDecoder();
-    const header = dec.decode(bytes.slice(0, 12));
-    return header.startsWith('RIFF') && header.slice(8, 12) === 'WEBP';
-  }
-  return false;
 }
 
 /**
@@ -202,7 +181,7 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  if (!ALLOWED_MIME.has('image/jpeg') || !GITHUB_PAT) {
+  if (!GITHUB_PAT) {
     console.error('Missing required environment variables');
     return res.status(500).json({ error: 'Server configuration error' });
   }
@@ -222,18 +201,15 @@ export default async function handler(req, res) {
   }
 
   // ── 3. Parse multipart form data ──────────────────────────────────────
-  // Vercel provides parsed body for non-multipart; for file uploads we use formidable
-  let fields, photoFiles;
+  // Photos are no longer sent here — they are pre-uploaded via /api/upload-photo
+  // and referenced by SHA in the photo_blobs field. maxFiles:0 rejects any
+  // accidental file upload to this endpoint.
+  let fields;
   try {
     const { default: formidable } = await import('formidable');
-    const form = formidable({
-      maxFiles: MAX_PHOTOS,
-      maxFileSize: MAX_PHOTO_BYTES,
-      filter: ({ mimetype }) => ALLOWED_MIME.has(mimetype ?? ''),
-      keepExtensions: false,
-    });
+    const form = formidable({ maxFiles: 0 });
 
-    [fields, photoFiles] = await new Promise((resolve, reject) => {
+    [fields] = await new Promise((resolve, reject) => {
       form.parse(req, (err, f, files) => {
         if (err) reject(err);
         else resolve([f, files]);
@@ -309,60 +285,31 @@ export default async function handler(req, res) {
   const customRaw = sanitizeText(field('custom_tags'), 500);
   const custom = customRaw ? customRaw.split(',').map(v => sanitizeText(v, 50)).filter(Boolean).slice(0, 20) : [];
 
-  // ── 5. Process photos ─────────────────────────────────────────────────
-  const { default: sharp } = await import('sharp');
-  const { readFile } = await import('fs/promises');
-
-  const allPhotoFiles = Object.values(photoFiles).flat();
-  const processedPhotos = [];
-
-  for (const file of allPhotoFiles.slice(0, MAX_PHOTOS)) {
-    // Read file bytes
-    const buf = await readFile(file.filepath);
-
-    // Validate magic bytes
-    if (!isValidImageBuffer(buf, file.mimetype)) {
-      console.warn('Invalid magic bytes for uploaded file, skipping');
-      continue;
-    }
-
-    // Strip ALL metadata using sharp (rotate to fix orientation, then strip).
-    // Sharp does NOT include metadata in output by default — calling .withMetadata()
-    // would copy EXIF from the input, which is the opposite of what we want.
-    // .rotate() uses the EXIF orientation tag to auto-correct rotation, then the
-    // tag (and all other EXIF) is dropped because we do not call .withMetadata().
-    //
-    // Cap input pixels and output dimensions to bound memory:
-    //   - limitInputPixels: rejects decoded images larger than ~24 MP. Sharp's
-    //     default is ~268 MP, which can decode to ~1 GB of raw RGBA — enough
-    //     to OOM the function under a coordinated upload of 10 photos.
-    //   - resize 2400x2400 fit:inside: caps output at a typical web-photo
-    //     size, drops re-encode memory + final blob size.
-    let cleanBuf;
+  // ── 5. Validate photo blob references ────────────────────────────────
+  // Photos were already uploaded individually via /api/upload-photo, which
+  // processed them with sharp and created GitHub blobs. The client passes
+  // back the SHA + filename for each so we can reference them in the tree
+  // without re-uploading any binary data.
+  const photoBlobs = [];
+  const rawPhotoBlobs = field('photo_blobs');
+  if (rawPhotoBlobs) {
     try {
-      cleanBuf = await sharp(buf, { limitInputPixels: 24_000_000, failOn: 'error' })
-        .rotate()          // auto-rotate from EXIF orientation flag
-        .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 85, mozjpeg: true })
-        .toBuffer();
-    } catch (err) {
-      console.error('Sharp processing error:', err);
-      continue; // Skip malformed images
+      const parsed = JSON.parse(rawPhotoBlobs);
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          if (
+            entry &&
+            typeof entry.sha      === 'string' && /^[0-9a-f]{40}$/.test(entry.sha) &&
+            typeof entry.filename === 'string' && /^[0-9a-f]{16}\.jpg$/.test(entry.filename)
+          ) {
+            photoBlobs.push(entry);
+            if (photoBlobs.length >= MAX_PHOTOS) break;
+          }
+        }
+      }
+    } catch {
+      // Malformed JSON — proceed with no photos
     }
-
-    // Verify output size is reasonable
-    if (cleanBuf.length > MAX_PHOTO_BYTES) {
-      console.warn('Processed photo exceeds size limit, skipping');
-      continue;
-    }
-
-    const ext = 'jpg';
-    const photoSlug = randomBytes(8).toString('hex');
-    processedPhotos.push({
-      filename: `${photoSlug}.${ext}`,
-      buffer: cleanBuf,
-      base64: cleanBuf.toString('base64'),
-    });
   }
 
   // ── 6. Build swamp JSON ───────────────────────────────────────────────
@@ -418,7 +365,7 @@ export default async function handler(req, res) {
           ...(ratingHabitat       !== undefined ? { habitat:       ratingHabitat }       : {}),
         }}
       : {}),
-    photos: processedPhotos.map(p => ({ filename: p.filename })),
+    photos: photoBlobs.map(p => ({ filename: p.filename })),
     submitted_date: today,
     last_updated:   today,
     verified: false,
@@ -482,13 +429,13 @@ export default async function handler(req, res) {
       },
     ];
 
-    for (const photo of processedPhotos) {
-      const photoBlobSha = await createBlob(photo.base64);
+    // Photo blobs already exist — reference them directly by SHA
+    for (const photo of photoBlobs) {
       treeEntries.push({
         path: `public/photos/${photo.filename}`,
         mode: '100644',
         type: 'blob',
-        sha:  photoBlobSha,
+        sha:  photo.sha,
       });
     }
 
@@ -500,8 +447,8 @@ export default async function handler(req, res) {
     });
 
     // e) Create a single commit — one commit regardless of photo count
-    const photoNote = processedPhotos.length > 0
-      ? ` + ${processedPhotos.length} photo${processedPhotos.length > 1 ? 's' : ''}`
+    const photoNote = photoBlobs.length > 0
+      ? ` + ${photoBlobs.length} photo${photoBlobs.length > 1 ? 's' : ''}`
       : '';
     const newCommit = await githubFetch(`/repos/${REPO_OWNER}/${REPO_NAME}/git/commits`, {
       method: 'POST',
@@ -549,7 +496,7 @@ export default async function handler(req, res) {
       `| **Best Season** | ${escapeMd(best_season.join(', ')) || '—'} |`,
       `| **Area** | ${area_acres ? `${area_acres.toLocaleString()} acres` : '—'} |`,
       `| **Ratings** | Novelty: ${ratingNovelty ?? '—'} · Accessibility: ${ratingAccessibility ?? '—'} · Habitat: ${ratingHabitat ?? '—'} |`,
-      `| **Photos** | ${processedPhotos.length} uploaded (EXIF fully stripped) |`,
+      `| **Photos** | ${photoBlobs.length} uploaded (EXIF fully stripped) |`,
       ``,
       `**[📍 Verify map pin location](${mapLink})**`,
       `**[🌿 View nearby GBIF species](${gbifLink})**`,
@@ -564,8 +511,8 @@ export default async function handler(req, res) {
       `- [ ] State and county are accurate`,
       `- [ ] Map pin location looks correct (see link above)`,
       `- [ ] Description is appropriate and factual`,
-      processedPhotos.length > 0
-        ? `- [ ] Photos show the actual location (${processedPhotos.length} attached)`
+      photoBlobs.length > 0
+        ? `- [ ] Photos show the actual location (${photoBlobs.length} attached)`
         : `- [ ] No photos submitted`,
       `- [ ] No personal information in any field`,
       ``,

@@ -11,6 +11,9 @@
     "api/suggest-edit.js": {
       "maxDuration": 30
     },
+    "api/upload-photo.js": {
+      "maxDuration": 30
+    },
     "api/geocode.js": {
       "maxDuration": 10
     },

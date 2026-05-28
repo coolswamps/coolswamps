@@ -797,18 +797,11 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
   });
 
   // ─── Client-side image compression ────────────────────────────────────
-  /**
-   * Resize and re-encode one image using the Canvas API.
-   * targetBytes is a per-photo size budget derived from the total number of
-   * photos being uploaded (see the submit handler below). If the first quality
-   * pass produces a file over budget, progressively lower quality steps are
-   * tried until the file fits or we reach the minimum quality floor.
-   * Canvas export strips all EXIF at the browser level (pixel data only).
-   */
-  async function compressImage(file: File, targetBytes: number): Promise<File> {
-    const MAX_SIDE  = 1280; // web quality sufficient for wetland reference photos
-    const QUALITIES = [0.85, 0.72, 0.58, 0.44, 0.30]; // try each until under budget
-
+  // Resize to 1280px and encode at quality 0.85 before upload. Each photo is
+  // sent in its own request so there is no combined size budget to hit.
+  // Canvas export strips all EXIF at the browser level (pixel data only).
+  async function compressForUpload(file: File): Promise<File> {
+    const MAX_SIDE = 1280;
     return new Promise((resolve) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -820,23 +813,11 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
         canvas.width  = Math.round(w * scale);
         canvas.height = Math.round(h * scale);
         canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        function tryQuality(qi: number) {
-          canvas.toBlob((blob) => {
-            if (!blob) { resolve(file); return; }
-            // Accept if under budget OR if we have exhausted all quality steps
-            if (blob.size <= targetBytes || qi >= QUALITIES.length - 1) {
-              resolve(new File(
-                [blob],
-                file.name.replace(/\.[^.]+$/, '.jpg'),
-                { type: 'image/jpeg', lastModified: Date.now() },
-              ));
-            } else {
-              tryQuality(qi + 1);
-            }
-          }, 'image/jpeg', QUALITIES[qi]);
-        }
-        tryQuality(0);
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'),
+            { type: 'image/jpeg', lastModified: Date.now() }));
+        }, 'image/jpeg', 0.85);
       };
       img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
       img.src = url;
@@ -871,55 +852,51 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
     // Disable submit button before async work to prevent double-submit
     submitBtn.disabled = true;
 
-    // ── Compress photos to fit within Vercel's 4.5 MB serverless payload limit ──
-    // Budget: 3.8 MB total for photos (leaves ~700 KB for form fields + multipart
-    // overhead + headroom). Divide equally across however many photos are selected
-    // so that a single photo gets generous quality while 10 photos each get tighter
-    // budgets. Each photo is tried at progressively lower quality until it fits.
-    const PAYLOAD_BUDGET  = 3_800_000; // bytes available for photo data
-    const FORM_OVERHEAD   = 60_000;    // estimated bytes for all non-photo form fields
-    const perPhotoTarget  = selectedFiles.length > 0
-      ? Math.floor((PAYLOAD_BUDGET - FORM_OVERHEAD) / selectedFiles.length)
-      : PAYLOAD_BUDGET;
+    // ── Upload photos individually to /api/upload-photo ──────────────────
+    // Each photo is sent in its own request (well under Vercel's 4.5 MB cap),
+    // the server creates a GitHub blob and returns { sha, filename }. The main
+    // submission then carries only text fields + blob SHAs — so any number of
+    // photos works regardless of their combined size.
+    const photoBlobs: { sha: string; filename: string }[] = [];
+    const submitIconHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
+    </svg> Submit for Review`;
 
-    if (selectedFiles.length > 0) {
-      submitBtn.textContent = `Compressing ${selectedFiles.length} photo${selectedFiles.length > 1 ? 's' : ''}…`;
-    } else {
-      submitBtn.textContent = 'Submitting…';
-    }
-
-    const compressed = await Promise.all(
-      selectedFiles.map(f => compressImage(f, perPhotoTarget))
-    );
-
-    // Safety guard — verify total before sending (edge case: extremely complex images)
-    const totalCompressedBytes = compressed.reduce((sum, f) => sum + f.size, 0);
-    if (totalCompressedBytes > PAYLOAD_BUDGET) {
-      const totalMB = (totalCompressedBytes / 1_048_576).toFixed(1);
-      formErrorDetail.textContent =
-        `Photos are still too large after compression (${totalMB} MB). ` +
-        `Please select fewer photos or use a different set.`;
-      formErrorMsg.classList.remove('hidden');
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2"><path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
-        </svg> Submit for Review`;
-      return;
+    for (let i = 0; i < selectedFiles.length; i++) {
+      submitBtn.textContent = `Uploading photo ${i + 1} of ${selectedFiles.length}…`;
+      const compressed = await compressForUpload(selectedFiles[i]);
+      const uploadFd = new FormData();
+      uploadFd.append('photo', compressed, compressed.name);
+      try {
+        const uploadRes = await fetch('/api/upload-photo', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrfToken },
+          body: uploadFd,
+        });
+        if (!uploadRes.ok) {
+          const data = await uploadRes.json().catch(() => ({}));
+          formErrorDetail.textContent = data.error ?? `Photo ${i + 1} upload failed (HTTP ${uploadRes.status}). Please try again.`;
+          formErrorMsg.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = submitIconHTML;
+          return;
+        }
+        photoBlobs.push(await uploadRes.json());
+      } catch {
+        formErrorDetail.textContent = 'Network error uploading photos. Please check your connection and try again.';
+        formErrorMsg.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = submitIconHTML;
+        return;
+      }
     }
 
     submitBtn.textContent = 'Submitting…';
 
-    // Build FormData — strip the raw file input first.
-    // new FormData(form) captures the <input type="file" name="photos"> in its
-    // current state, which still holds the original uncompressed files when
-    // photos were chosen via the file picker. Deleting 'photos' before appending
-    // the compressed versions ensures only compressed files reach the server.
     const fd = new FormData(form);
-    fd.delete('photos');
-
-    // Append compressed files (the originals never leave the browser)
-    compressed.forEach((file, i) => fd.append(`photo_${i}`, file, file.name));
-    fd.set('photo_count', String(compressed.length));
+    fd.delete('photos'); // remove raw file input — photos were uploaded separately
+    fd.set('photo_blobs', JSON.stringify(photoBlobs));
 
     try {
       const res = await fetch('/api/submit-swamp', {
@@ -946,13 +923,7 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
       formErrorMsg.classList.remove('hidden');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2">
-          <path d="M22 2 11 13M22 2 15 22 11 13 2 9l20-7z"/>
-        </svg>
-        Submit for Review
-      `;
+      submitBtn.innerHTML = submitIconHTML;
     }
   });
 </script>
