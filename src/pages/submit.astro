@@ -759,6 +759,7 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
       (div.querySelector('p') as HTMLParagraphElement).textContent = file.name;
       div.querySelector('button')?.addEventListener('click', () => {
         selectedFiles.splice(i, 1);
+        photoError.classList.add('hidden');
         renderPreviews(selectedFiles);
       });
       preview.appendChild(div);
@@ -767,11 +768,13 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
 
   function handleFiles(files: FileList | File[]) {
     const valid = validateFiles(files);
-    const combined = [...selectedFiles, ...valid].slice(0, MAX_FILES);
     if (selectedFiles.length + valid.length > MAX_FILES) {
-      showPhotoError(`Maximum ${MAX_FILES} photos allowed.`);
+      photoError.textContent = `Maximum ${MAX_FILES} photos per submission. Please remove some photos before adding more.`;
+      photoError.classList.remove('hidden');
+      return;
     }
-    selectedFiles = combined;
+    photoError.classList.add('hidden');
+    selectedFiles = [...selectedFiles, ...valid];
     renderPreviews(selectedFiles);
   }
 

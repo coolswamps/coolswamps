@@ -746,6 +746,7 @@ function renderPreviews(files: File[]) {
         aria-label="Remove photo ${i + 1}">✕</button>`;
     div.querySelector('button')?.addEventListener('click', () => {
       selectedFiles.splice(i, 1);
+      photoError.classList.add('hidden');
       renderPreviews(selectedFiles);
     });
     preview.appendChild(div);
@@ -753,10 +754,14 @@ function renderPreviews(files: File[]) {
 }
 
 function handleFiles(files: FileList | File[]) {
-  const valid    = validateFiles(files);
-  const combined = [...selectedFiles, ...valid].slice(0, MAX_FILES);
-  if (selectedFiles.length + valid.length > MAX_FILES) showPhotoError(`Maximum ${MAX_FILES} photos allowed.`);
-  selectedFiles = combined;
+  const valid = validateFiles(files);
+  if (selectedFiles.length + valid.length > MAX_FILES) {
+    photoError.textContent = `Maximum ${MAX_FILES} photos per submission. Please remove some photos before adding more.`;
+    photoError.classList.remove('hidden');
+    return;
+  }
+  photoError.classList.add('hidden');
+  selectedFiles = [...selectedFiles, ...valid];
   renderPreviews(selectedFiles);
 }
 
