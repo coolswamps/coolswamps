@@ -437,7 +437,7 @@ import {
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               <p class="text-sm text-swamp-600 font-medium">Drop photos here or click to browse</p>
-              <p class="text-xs text-swamp-400 mt-1">JPEG, PNG, or WebP · up to 10 photos · automatically compressed before upload</p>
+              <p class="text-xs text-swamp-400 mt-1">JPEG, PNG, or WebP · up to 10 MB each · up to 10 photos</p>
               <input
                 type="file"
                 id="photos"
@@ -729,7 +729,7 @@ document.querySelectorAll<HTMLElement>('.star-picker').forEach(container => {
         continue;
       }
       if (file.size > MAX_SIZE_BYTES) {
-        showPhotoError(`${file.name}: exceeds 10 MB limit.`);
+        showPhotoError(`"${file.name}" is too large — photos must be 10 MB or smaller.`);
         continue;
       }
       valid.push(file);
