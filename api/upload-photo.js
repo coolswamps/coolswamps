@@ -15,9 +15,9 @@ const REPO_NAME       = process.env.GITHUB_REPO_NAME  ?? 'coolswamps';
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME    = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-// Separate rate limit from the main submission endpoints so uploading 20 photos
-// doesn't exhaust the submission quota. 60/hour = 3 full 20-photo submissions.
-const RATE_LIMIT_MAX = 60;
+// Hard cap matching the per-submission photo limit — prevents uploading more
+// blobs than can ever appear in a single PR regardless of client behaviour.
+const RATE_LIMIT_MAX = 10;
 
 /** @type {Map<string, {count: number, resetAt: number}>} */
 const rateLimitMap = new Map();
